@@ -5,9 +5,9 @@
 
 **OctaVis** is an air-gapped, zero-telemetry optical data transmission codec based on a 60-cell hexagonal grid (10,621 cells) and an 8-state (3-bit) color system. It encodes arbitrary binary files and text into static images (PNG) and video streams (WebM).
 
-**OctaZip** is the non-visual, high-density text serialization counterpart of OctaVis designed for text-only communication channels (chat comments, forums, email body, and SMS).
+**OctaZip** is a standalone, high-performance binary archive format (`.ozip`) powered by the same cryptographic and compression engine. It eliminates text bloat and easily handles large binary files directly through the browser.
 
-Both formats are powered by a unified **Rust WebAssembly (`wasm32-unknown-unknown`)** core, ensuring all cryptographic, compression, and error-correction routines execute strictly inside the client browser sandbox without any server-side telemetry.
+Both formats are driven by a unified **Rust WebAssembly (`wasm32-unknown-unknown`)** core, ensuring all cryptographic, compression, and error-correction routines execute strictly inside the client browser sandbox without any server-side telemetry.
 
 ---
 
@@ -25,10 +25,10 @@ Both formats are powered by a unified **Rust WebAssembly (`wasm32-unknown-unknow
   * **Camouflage Mode:** Cyberpunk dark radar/minimap background styling to bypass vision-based AI classification.
   * **Robust Platform Sampling:** 60Hz oversampling to recover effective FPS from re-encoded videos (KakaoTalk, Naver Cafe, YouTube).
 
-### 2. OctaZip (Text Armor)
-* **Format:** PGP-style armored text (`-----BEGIN OCTAZIP V1.0-----`).
-* **Encoding:** High-density Base91 serialization (~20-25% overhead compared to Base64's ~33%).
-* **Envelope:** Magic header `OZ` + flags + CRC-16 checksum + compressed ciphertext.
+### 2. OctaZip (Binary Archive `.ozip`)
+* **Format:** Standalone binary archive format with magic header `OZIP`.
+* **Zero Text Bloat:** Direct binary file packaging (no Base64/Base91 overhead, suitable for arbitrary and large files).
+* **Envelope:** `[Magic "OZIP" (4B)]` + `[Flags (1B)]` + `[CRC16 (2B)]` + `[Payload]`.
 
 ### 3. Cryptography & Air-Gap Architecture (Kerckhoffs's Principle)
 * **Cipher:** ChaCha20-Poly1305 authenticated encryption with random 16-byte salt and 12-byte nonce.
@@ -52,14 +52,14 @@ octavis/
 │       │   ├── ecc.rs      # 3-axis line parity & Reed-Solomon
 │       │   ├── grid.rs     # 60-cell hexagonal geometry
 │       │   ├── layout.rs   # Cell slot partitioning
-│       │   └── octazip.rs  # Base91 text armor codec
+│       │   └── octazip.rs  # Standalone binary .ozip archiver
 │       └── tests/
 ├── src/                    # TypeScript Frontend Application
 │   ├── renderer.ts         # Canvas hexagonal tile & preamble renderer
 │   ├── video.ts            # WebM stream recorder
 │   ├── decoder.ts          # Optical grid sampler & decoder
 │   ├── video_decoder.ts    # 60Hz adaptive FPS & preamble detector
-│   ├── i18n.ts             # Korean / English localization
+│   ├── i18n.ts             # English / Korean / Chinese localization
 │   └── main.ts             # Application controller & UI events
 ├── .github/workflows/      # GitHub Pages automated CI/CD
 └── vite.config.ts
@@ -67,33 +67,9 @@ octavis/
 
 ---
 
-## Getting Started
-
-### Prerequisites
-* [Node.js](https://nodejs.org/) (v20+)
-* [Rust](https://rustup.rs/) (stable)
-* [wasm-pack](https://rustwasm.github.io/wasm-pack/)
-
-### Development
-```bash
-# 1. Build Rust WebAssembly core
-wasm-pack build crates/octavis_core --target web --out-dir ../../src/wasm
-
-# 2. Install dependencies & launch dev server
-npm install
-npm run dev
-```
-
-### Production Build
-```bash
-npm run build
-```
-
----
-
 ## Deployment (GitHub Pages)
 
-The repository is pre-configured with GitHub Actions (`.github/workflows/deploy.yml`). Simply push to `main` and set **Settings > Pages > Source** to **GitHub Actions**.
+The repository is pre-configured with GitHub Actions (`.github/workflows/deploy.yml`).
 
 Live site: `https://gg582.github.io/octavis/`
 

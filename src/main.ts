@@ -48,10 +48,9 @@ const zipTextInput = document.getElementById('zip-text-input') as HTMLTextAreaEl
 const zipEncPassphrase = document.getElementById('zip-enc-passphrase') as HTMLInputElement;
 const zipEncodeBtn = document.getElementById('zip-encode-btn') as HTMLButtonElement;
 const zipEncodeStatus = document.getElementById('zip-encode-status') as HTMLDivElement;
-const zipOutputText = document.getElementById('zip-output-text') as HTMLTextAreaElement;
-const zipCopyBtn = document.getElementById('zip-copy-btn') as HTMLButtonElement;
+const zipDownloadBtn = document.getElementById('zip-download-btn') as HTMLAnchorElement;
 
-const zipDecodeInput = document.getElementById('zip-decode-input') as HTMLTextAreaElement;
+const zipDecodeFileInput = document.getElementById('zip-decode-file-input') as HTMLInputElement;
 const zipDecPassphrase = document.getElementById('zip-dec-passphrase') as HTMLInputElement;
 const zipDecodeBtn = document.getElementById('zip-decode-btn') as HTMLButtonElement;
 const zipDecodeStatus = document.getElementById('zip-decode-status') as HTMLDivElement;
@@ -64,7 +63,6 @@ let lastZipDecodedBytes: Uint8Array | null = null;
 let cameraStream: MediaStream | null = null;
 let cameraScanTimer: number | null = null;
 
-// Apply i18n
 function applyLanguage(lang: Lang) {
   currentLang = lang;
   langEnBtn.classList.toggle('active', lang === 'en');
@@ -91,7 +89,6 @@ langEnBtn.addEventListener('click', () => applyLanguage('en'));
 langKoBtn.addEventListener('click', () => applyLanguage('ko'));
 langZhBtn.addEventListener('click', () => applyLanguage('zh'));
 
-// Tabs switching
 tabBtnOctavis.addEventListener('click', () => {
   tabBtnOctavis.classList.add('active');
   tabBtnOctazip.classList.remove('active');
@@ -365,7 +362,7 @@ downloadDecodedBtn.addEventListener('click', () => {
 });
 
 // -------------------------------------------------------------
-// OCTAZIP TEXT ARMOR ENCODER / DECODER
+// OCTAZIP BINARY ARCHIVER (.ozip)
 // -------------------------------------------------------------
 zipEncodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
@@ -384,38 +381,38 @@ zipEncodeBtn.addEventListener('click', async () => {
   const codec = renderer.getCodec();
 
   try {
-    zipEncodeStatus.innerText = 'Generating OctaZip text armor...';
-    const armor = codec.encode_octazip_text(binary, pass);
-    zipOutputText.value = armor;
-    zipCopyBtn.style.display = 'inline-block';
-    zipEncodeStatus.innerText = `${currentLang === 'ko' ? 'OctaZip 아머 생성 완료' : currentLang === 'zh' ? 'OctaZip 装甲生成完毕' : 'OctaZip armor generated'} (${armor.length} chars)`;
+    zipEncodeStatus.innerText = 'Packing binary .ozip archive...';
+    const archiveBytes = codec.encode_octazip(binary, pass);
+    
+    const copy = new Uint8Array(archiveBytes);
+    const blob = new Blob([copy.buffer as ArrayBuffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    zipDownloadBtn.href = url;
+    zipDownloadBtn.download = 'archive.ozip';
+    zipDownloadBtn.style.display = 'inline-flex';
+    zipDownloadBtn.innerText = currentLang === 'ko' ? '.ozip 파일 다운로드' : currentLang === 'zh' ? '下载 .ozip 归档' : 'Download .ozip Archive';
+
+    zipEncodeStatus.innerText = `${currentLang === 'ko' ? '.ozip 바이너리 아카이브 생성 완료' : currentLang === 'zh' ? '.ozip 二进制归档创建完毕' : '.ozip binary archive ready'} (${(archiveBytes.length / 1024).toFixed(1)} KB)`;
   } catch (err: any) {
     zipEncodeStatus.innerText = `Error: ${err?.message || err}`;
   }
 });
 
-zipCopyBtn.addEventListener('click', async () => {
-  if (!zipOutputText.value) return;
-  await navigator.clipboard.writeText(zipOutputText.value);
-  zipCopyBtn.innerText = currentLang === 'ko' ? '복사 완료!' : currentLang === 'zh' ? '已复制！' : 'Copied!';
-  setTimeout(() => {
-    zipCopyBtn.innerText = currentLang === 'ko' ? '클립보드에 복사' : currentLang === 'zh' ? '复制到剪贴板' : 'Copy to Clipboard';
-  }, 2000);
-});
-
-zipDecodeBtn.addEventListener('click', () => {
-  const text = zipDecodeInput.value.trim();
-  if (!text) {
-    alert(currentLang === 'ko' ? 'OctaZip 아머 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请粘贴 OctaZip 装甲文本。' : 'Please paste OctaZip armor text.');
+zipDecodeBtn.addEventListener('click', async () => {
+  if (!zipDecodeFileInput.files || !zipDecodeFileInput.files[0]) {
+    alert(currentLang === 'ko' ? '해제할 .ozip 파일을 선택해주세요.' : currentLang === 'zh' ? '请选择要解包的 .ozip 文件。' : 'Please select an .ozip file to extract.');
     return;
   }
 
+  const file = zipDecodeFileInput.files[0];
+  const buf = await file.arrayBuffer();
+  const archiveBytes = new Uint8Array(buf);
   const pass = zipDecPassphrase.value.trim();
   const codec = renderer.getCodec();
 
   try {
-    zipDecodeStatus.innerText = 'Decoding OctaZip armor...';
-    const recovered = codec.decode_octazip_text(text, pass);
+    zipDecodeStatus.innerText = 'Extracting .ozip archive...';
+    const recovered = codec.decode_octazip(archiveBytes, pass);
     lastZipDecodedBytes = recovered;
 
     try {
@@ -424,8 +421,8 @@ zipDecodeBtn.addEventListener('click', () => {
       zipDecodeOutput.value = `[Binary Data Recovered (${recovered.length} bytes)]`;
     }
 
-    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : currentLang === 'zh' ? '解码成功' : 'Decoded successfully'} (${recovered.length} B)`;
-    zipDownloadDecodedBtn.style.display = 'inline-block';
+    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '압축 해제 성공' : currentLang === 'zh' ? '解包成功' : 'Extracted successfully'} (${(recovered.length / 1024).toFixed(1)} KB)`;
+    zipDownloadDecodedBtn.style.display = 'inline-flex';
   } catch (err: any) {
     zipDecodeStatus.innerText = `Error: ${err?.message || err}`;
     zipDecodeOutput.value = '';
@@ -449,7 +446,7 @@ zipDownloadDecodedBtn.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'recovered_octazip.bin';
+  a.download = 'extracted_data.bin';
   a.click();
 });
 

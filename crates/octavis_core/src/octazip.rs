@@ -1,12 +1,11 @@
 use crate::crypto::{decrypt_payload, encrypt_payload};
 use std::io::Write;
 
-pub const OCTAZIP_HEADER: &str = "-----BEGIN OCTAZIP V1.0-----";
-pub const OCTAZIP_FOOTER: &str = "-----END OCTAZIP-----";
+pub const OCTAZIP_MAGIC: &[u8; 4] = b"OZIP";
 
-/// Encodes binary payload into OctaZip text armor format.
-/// Pipeline: [ChaCha20-Poly1305 Encrypt if passphrase] -> [Brotli Compression] -> [CRC16 + Flags] -> [Base91 Armor]
-pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<String, String> {
+/// Encodes binary payload into standalone binary archive format (.ozip).
+/// Pipeline: [ChaCha20-Poly1305 Encrypt if passphrase] -> [Brotli Compression] -> [CRC16 + Flags] -> Binary Envelope
+pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
     // 1. Optional encryption
     let encrypted_flag: u8;
     let data_to_compress: Vec<u8>;
@@ -30,56 +29,35 @@ pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<String, String
         }
     }
 
-    // 3. Binary envelope: [Magic "OZ"] + [Flags: (enc << 1) | brotli] + [CRC16 (2 bytes)] + [Payload]
+    // 3. Binary envelope: [Magic "OZIP" (4B)] + [Flags (1B): (enc << 1) | brotli] + [CRC16 (2B)] + [Payload (NB)]
     let crc = crc16::State::<crc16::XMODEM>::calculate(&final_bytes);
     let flags = (encrypted_flag << 1) | brotli_flag;
 
-    let mut envelope = Vec::with_capacity(5 + final_bytes.len());
-    envelope.extend_from_slice(b"OZ");
+    let mut envelope = Vec::with_capacity(7 + final_bytes.len());
+    envelope.extend_from_slice(OCTAZIP_MAGIC);
     envelope.push(flags);
     envelope.extend_from_slice(&crc.to_be_bytes());
     envelope.extend_from_slice(&final_bytes);
 
-    // 4. Base91 representation
-    let encoded_b91 = base91::slice_encode(&envelope);
-    let b91_str = String::from_utf8(encoded_b91).map_err(|e| e.to_string())?;
-
-    // Break into lines of 64 characters
-    let mut wrapped = String::new();
-    for chunk in b91_str.as_bytes().chunks(64) {
-        wrapped.push_str(std::str::from_utf8(chunk).unwrap());
-        wrapped.push('\n');
-    }
-
-    Ok(format!("{}\n{}{}", OCTAZIP_HEADER, wrapped, OCTAZIP_FOOTER))
+    Ok(envelope)
 }
 
-/// Decodes an OctaZip text armor into raw payload bytes.
-pub fn decode_octazip(armor_text: &str, passphrase: &str) -> Result<Vec<u8>, String> {
-    let clean = armor_text.trim();
-    let body = if clean.contains(OCTAZIP_HEADER) && clean.contains(OCTAZIP_FOOTER) {
-        let start = clean.find(OCTAZIP_HEADER).unwrap() + OCTAZIP_HEADER.len();
-        let end = clean.find(OCTAZIP_FOOTER).unwrap();
-        clean[start..end].replace(['\r', '\n', ' '], "")
-    } else {
-        clean.replace(['\r', '\n', ' '], "")
-    };
-
-    let envelope = base91::slice_decode(body.as_bytes());
-    if envelope.len() < 5 || &envelope[0..2] != b"OZ" {
-        return Err("Invalid OctaZip header or corrupted envelope".to_string());
+/// Decodes an OctaZip binary archive into raw payload bytes.
+pub fn decode_octazip(envelope: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
+    if envelope.len() < 7 || &envelope[0..4] != OCTAZIP_MAGIC {
+        return Err("Invalid OctaZip binary archive header".to_string());
     }
 
-    let flags = envelope[2];
+    let flags = envelope[4];
     let encrypted_flag = (flags >> 1) & 1;
     let brotli_flag = flags & 1;
 
-    let expected_crc = u16::from_be_bytes([envelope[3], envelope[4]]);
-    let compressed_data = &envelope[5..];
+    let expected_crc = u16::from_be_bytes([envelope[5], envelope[6]]);
+    let compressed_data = &envelope[7..];
 
     let actual_crc = crc16::State::<crc16::XMODEM>::calculate(compressed_data);
     if actual_crc != expected_crc {
-        return Err("OctaZip CRC checksum verification failed".to_string());
+        return Err("OctaZip CRC-16 checksum verification failed".to_string());
     }
 
     // Decompress Brotli if flag set
@@ -96,7 +74,7 @@ pub fn decode_octazip(armor_text: &str, passphrase: &str) -> Result<Vec<u8>, Str
     // Decrypt if encrypted flag set
     if encrypted_flag == 1 {
         if passphrase.trim().is_empty() {
-            return Err("OctaZip payload is encrypted. Passphrase required.".to_string());
+            return Err("OctaZip archive is encrypted. Passphrase required.".to_string());
         }
         decrypt_payload(&decompressed, passphrase)
     } else {

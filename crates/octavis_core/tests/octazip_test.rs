@@ -1,12 +1,11 @@
 #[test]
-fn test_octazip_roundtrip() {
-    let original = b"OctaZip: High-density armor text format for censorship-resistant communication!";
+fn test_octazip_binary_roundtrip() {
+    let original = b"OctaZip: High-efficiency binary archive format (.ozip) for large files!";
     let pass = "my-secret-key-123";
 
-    let armor = octavis_core::octazip::encode_octazip(original, pass).unwrap();
-    assert!(armor.contains("-----BEGIN OCTAZIP V1.0-----"));
-    assert!(armor.contains("-----END OCTAZIP-----"));
+    let archive = octavis_core::octazip::encode_octazip(original, pass).unwrap();
+    assert_eq!(&archive[0..4], b"OZIP");
 
-    let recovered = octavis_core::octazip::decode_octazip(&armor, pass).unwrap();
+    let recovered = octavis_core::octazip::decode_octazip(&archive, pass).unwrap();
     assert_eq!(&original[..], &recovered[..]);
 }

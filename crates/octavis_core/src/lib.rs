@@ -257,12 +257,15 @@ impl OctaVisCodec {
         }
     }
 
-    pub fn encode_octazip_text(&self, payload: &[u8], passphrase: &str) -> Result<String, JsValue> {
-        octazip::encode_octazip(payload, passphrase).map_err(|e| JsValue::from_str(&e))
+    /// Encodes binary payload into standalone binary archive (.ozip)
+    pub fn encode_octazip(&self, payload: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
+        let envelope = octazip::encode_octazip(payload, passphrase).map_err(|e| JsValue::from_str(&e))?;
+        Ok(js_sys::Uint8Array::from(&envelope[..]))
     }
 
-    pub fn decode_octazip_text(&self, armor: &str, passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
-        let decoded = octazip::decode_octazip(armor, passphrase).map_err(|e| JsValue::from_str(&e))?;
+    /// Decodes an OctaZip binary archive (.ozip) into original payload bytes
+    pub fn decode_octazip(&self, archive_bytes: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
+        let decoded = octazip::decode_octazip(archive_bytes, passphrase).map_err(|e| JsValue::from_str(&e))?;
         Ok(js_sys::Uint8Array::from(&decoded[..]))
     }
 

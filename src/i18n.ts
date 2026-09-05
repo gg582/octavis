@@ -3,10 +3,10 @@ export type Lang = 'en' | 'ko' | 'zh';
 export const translations = {
   en: {
     title: 'OctaVis & OctaZip (v1.1)',
-    subtitle: '60-Cell Hexagonal Grid (10,621 Cells) Optical Codec & Dense Text Serialization',
+    subtitle: '60-Cell Hexagonal Grid Optical Codec & Standalone Binary Archive Tool',
     badge: '🛡️ Air-Gapped / Zero-Telemetry: All cryptographic, compression, and decoding operations run strictly inside browser WebAssembly sandbox.',
     tab_octavis: 'OctaVis (Optical Image/Video)',
-    tab_octazip: 'OctaZip (Text Armor Serialization)',
+    tab_octazip: 'OctaZip (Binary Archive .ozip)',
     
     // OctaVis Encoder
     enc_title: 'Encoder',
@@ -35,20 +35,20 @@ export const translations = {
     btn_wipe_mem: 'Wipe Memory (Zeroize)',
 
     // OctaZip Tab
-    zip_enc_title: 'OctaZip Text Armor Encoder',
-    zip_enc_hint: 'Dense lossless text serialization for SNS, chat comments, and text-only channels',
-    zip_btn_encode: 'Generate Text Armor',
-    zip_btn_copy: 'Copy to Clipboard',
-    zip_dec_title: 'OctaZip Text Armor Decoder',
-    zip_dec_label: 'Paste Received OctaZip Text Armor',
-    zip_btn_decode: 'Decode Text Armor (WASM)',
+    zip_enc_title: 'OctaZip Binary Archiver (.ozip)',
+    zip_enc_hint: 'Standalone high-performance binary archive: Brotli + ChaCha20-Poly1305 + CRC-16 (No base text bloat, handles large files)',
+    zip_btn_encode: 'Pack into .ozip Archive',
+    zip_btn_download: 'Download .ozip Archive',
+    zip_dec_title: 'OctaZip Binary Extractor',
+    zip_dec_label: 'Select .ozip Archive File to Extract',
+    zip_btn_decode: 'Extract .ozip (WASM)',
   },
   ko: {
     title: 'OctaVis & OctaZip (v1.1)',
-    subtitle: '60셀 육각 격자(10,621칸) 광학 미디어 & 고밀도 텍스트 직렬화 코덱',
+    subtitle: '60셀 육각 격자 광학 미디어 & 단독 실행형 바이너리 압축 아카이버',
     badge: '🛡️ Air-Gapped / Zero-Telemetry: 모든 암호화, 압축, 해독은 브라우저 WebAssembly 격리 샌드박스 내부에서만 실행됩니다.',
     tab_octavis: 'OctaVis (광학 이미지/비디오)',
-    tab_octazip: 'OctaZip (텍스트 아머 직렬화)',
+    tab_octazip: 'OctaZip (바이너리 아카이브 .ozip)',
     
     // OctaVis Encoder
     enc_title: '인코더 (Encoder)',
@@ -77,20 +77,20 @@ export const translations = {
     btn_wipe_mem: '메모리 즉시 파기 (Wipe)',
 
     // OctaZip Tab
-    zip_enc_title: 'OctaZip 텍스트 아머 인코더',
-    zip_enc_hint: 'SNS, 메신저 댓글, 이메일 본문 등 텍스트 채널을 위한 고밀도 무손실 직렬화 규격',
-    zip_btn_encode: '텍스트 아머 생성',
-    zip_btn_copy: '클립보드에 복사',
-    zip_dec_title: 'OctaZip 텍스트 아머 디코더',
-    zip_dec_label: '수신한 OctaZip 텍스트 아머 붙여넣기',
-    zip_btn_decode: '텍스트 아머 복원 (WASM 해독)',
+    zip_enc_title: 'OctaZip 바이너리 아카이버 (.ozip)',
+    zip_enc_hint: '텍스트 팽창 없이 대용량 파일을 고속 패킹: Brotli 압축 + ChaCha20 암호화 + CRC16 무결성 검증',
+    zip_btn_encode: '.ozip 아카이브 생성',
+    zip_btn_download: '.ozip 파일 다운로드',
+    zip_dec_title: 'OctaZip 바이너리 추출기',
+    zip_dec_label: '해제할 .ozip 아카이브 파일 선택',
+    zip_btn_decode: '.ozip 아카이브 해제 (WASM)',
   },
   zh: {
     title: 'OctaVis & OctaZip (v1.1)',
-    subtitle: '60格正六边形网格（10,621格）光学介质与高密度文本序列化编解码器',
+    subtitle: '60格正六边形网格光学介质与独立二进制归档工具',
     badge: '🛡️ 气隙隔离 / 零数据遥测 (Air-Gapped / Zero-Telemetry)：所有加密、压缩与解码运算均在浏览器 WebAssembly 沙箱内完全离线执行。',
     tab_octavis: 'OctaVis (光学图像/视频)',
-    tab_octazip: 'OctaZip (文本装甲序列化)',
+    tab_octazip: 'OctaZip (二进制归档 .ozip)',
     
     // OctaVis Encoder
     enc_title: '编码器 (Encoder)',
@@ -119,12 +119,12 @@ export const translations = {
     btn_wipe_mem: '立即粉碎内存 (Zeroize)',
 
     // OctaZip Tab
-    zip_enc_title: 'OctaZip 文本装甲编码器',
-    zip_enc_hint: '专为社交媒体、聊天评论、电子邮件正文等纯文本渠道设计的高密度无损序列化规范',
-    zip_btn_encode: '生成文本装甲',
-    zip_btn_copy: '复制到剪贴板',
-    zip_dec_title: 'OctaZip 文本装甲解码器',
-    zip_dec_label: '粘贴收到的 OctaZip 文本装甲',
-    zip_btn_decode: '还原文本装甲 (WASM 解码)',
+    zip_enc_title: 'OctaZip 二进制归档器 (.ozip)',
+    zip_enc_hint: '无文本膨胀、支持大文件的高速归档格式：Brotli 压缩 + ChaCha20 加密 + CRC16 完整性验证',
+    zip_btn_encode: '打包为 .ozip 文件',
+    zip_btn_download: '下载 .ozip 归档',
+    zip_dec_title: 'OctaZip 二进制提取器',
+    zip_dec_label: '选择要解包的 .ozip 归档文件',
+    zip_btn_decode: '解包 .ozip 归档 (WASM)',
   }
 };

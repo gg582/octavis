@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self';" />
     <meta name="referrer" content="no-referrer" />
-    <title>OctaVis & OctaZip - Air-Gapped Optical & Text Codec</title>
+    <title>OctaVis & OctaZip - Air-Gapped Optical & Binary Codec</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -19,7 +19,7 @@
             <button id="lang-zh" class="btn-sm">中文</button>
           </div>
         </div>
-        <p class="subtitle" data-i18n="subtitle">60-Cell Hexagonal Grid (10,621 Cells) Optical Codec & Dense Text Serialization</p>
+        <p class="subtitle" data-i18n="subtitle">60-Cell Hexagonal Grid Optical Codec & Standalone Binary Archive Tool</p>
         <div class="security-badge" data-i18n="badge">
           🛡️ Air-Gapped / Zero-Telemetry: All cryptographic, compression, and decoding operations run strictly inside browser WebAssembly sandbox.
         </div>
@@ -28,7 +28,7 @@
       <!-- Navigation Tabs -->
       <nav class="nav-tabs">
         <button id="tab-btn-octavis" class="tab-btn active" data-i18n="tab_octavis">OctaVis (Optical Image/Video)</button>
-        <button id="tab-btn-octazip" class="tab-btn" data-i18n="tab_octazip">OctaZip (Text Armor Serialization)</button>
+        <button id="tab-btn-octazip" class="tab-btn" data-i18n="tab_octazip">OctaZip (Binary Archive .ozip)</button>
       </nav>
 
       <!-- TAB 1: OctaVis Optical Media -->
@@ -109,48 +109,44 @@
         </section>
       </main>
 
-      <!-- TAB 2: OctaZip Text Armor -->
+      <!-- TAB 2: OctaZip Binary Archiver -->
       <main id="tab-octazip" class="container tab-content" style="display: none;">
         <!-- OctaZip Encoder -->
         <section class="panel">
-          <h2 data-i18n="zip_enc_title">OctaZip Text Armor Encoder</h2>
-          <p class="hint" data-i18n="zip_enc_hint">Dense lossless text serialization for SNS, chat comments, and text-only channels</p>
+          <h2 data-i18n="zip_enc_title">OctaZip Binary Archiver (.ozip)</h2>
+          <p class="hint" data-i18n="zip_enc_hint">No text bloat, handles large files: Brotli + ChaCha20-Poly1305 + CRC-16</p>
           <div class="control-group">
             <label for="zip-file-input" data-i18n="enc_file_label">Select File to Transmit</label>
             <input type="file" id="zip-file-input" />
           </div>
           <div class="control-group">
             <label for="zip-text-input" data-i18n="enc_text_label">Or Enter Text Directly</label>
-            <textarea id="zip-text-input" rows="4" placeholder="Enter text to encode into armor..."></textarea>
+            <textarea id="zip-text-input" rows="4" placeholder="Enter text to archive..."></textarea>
           </div>
           <div class="control-group">
             <label for="zip-enc-passphrase" data-i18n="enc_pass_label">Secret Passphrase</label>
             <input type="password" id="zip-enc-passphrase" placeholder="Leave blank for plaintext, or enter to encrypt" />
           </div>
-          <button id="zip-encode-btn" class="btn primary" data-i18n="zip_btn_encode">Generate Text Armor</button>
+          <button id="zip-encode-btn" class="btn primary" data-i18n="zip_btn_encode">Pack into .ozip Archive</button>
 
           <div id="zip-encode-status" class="status-box"></div>
-          <div class="control-group">
-            <label>OctaZip Armor Output</label>
-            <textarea id="zip-output-text" rows="8" readonly placeholder="Generated text armor will appear here."></textarea>
-          </div>
           <div class="action-row">
-            <button id="zip-copy-btn" class="btn secondary" style="display: none;" data-i18n="zip_btn_copy">Copy to Clipboard</button>
+            <a id="zip-download-btn" class="btn secondary" style="display: none;" data-i18n="zip_btn_download">Download .ozip Archive</a>
           </div>
         </section>
 
         <!-- OctaZip Decoder -->
         <section class="panel">
-          <h2 data-i18n="zip_dec_title">OctaZip Text Armor Decoder</h2>
+          <h2 data-i18n="zip_dec_title">OctaZip Binary Extractor</h2>
           <div class="control-group">
-            <label for="zip-decode-input" data-i18n="zip_dec_label">Paste Received OctaZip Text Armor</label>
-            <textarea id="zip-decode-input" rows="8" placeholder="-----BEGIN OCTAZIP V1.0----- ... -----END OCTAZIP-----"></textarea>
+            <label for="zip-decode-file-input" data-i18n="zip_dec_label">Select .ozip Archive File to Extract</label>
+            <input type="file" id="zip-decode-file-input" accept=".ozip,application/octet-stream" />
           </div>
           <div class="control-group">
             <label for="zip-dec-passphrase" data-i18n="dec_pass_label">Decryption Passphrase</label>
             <input type="password" id="zip-dec-passphrase" placeholder="Required if payload was encrypted" />
           </div>
-          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Decode Text Armor (WASM)</button>
+          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Extract .ozip (WASM)</button>
 
           <div id="zip-decode-status" class="status-box"></div>
           <div class="control-group">
