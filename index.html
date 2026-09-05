@@ -5,47 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self';" />
     <meta name="referrer" content="no-referrer" />
-    <title>OctaVis - Optical Data Codec (Chameleon Camouflage v1.1)</title>
+    <title>OctaVis & OctaZip - Air-Gapped Optical & Text Codec</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>OctaVis (v1.1)</h1>
-        <p class="subtitle">60셀 육각 격자 (10,621칸) · 카멜레온 가변 프리앰블 & 위장형 격자 탑재</p>
-        <div class="security-badge">
-          🛡️ <strong>검열 저항성 극대화:</strong> 패스프레이즈 기반 카멜레온 프리앰블(시그니처 무작위화) + 사이버펑크 레이더 위장 배경 지원
+        <div class="header-top">
+          <h1 data-i18n="title">OctaVis & OctaZip (v1.1)</h1>
+          <div class="lang-selector">
+            <button id="lang-ko" class="btn-sm active">한국어</button>
+            <button id="lang-en" class="btn-sm">English</button>
+          </div>
+        </div>
+        <p class="subtitle" data-i18n="subtitle">60셀 육각 격자 (10,621칸) 광학 미디어 & 고밀도 텍스트 직렬화 코덱</p>
+        <div class="security-badge" data-i18n="badge">
+          🛡️ Air-Gapped / Zero-Telemetry: 모든 암호화, 압축, 해독은 브라우저 WebAssembly 격리 샌드박스 내부에서만 실행됩니다.
         </div>
       </header>
 
-      <main class="container">
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button id="tab-btn-octavis" class="tab-btn active" data-i18n="tab_octavis">OctaVis (광학 이미지/비디오)</button>
+        <button id="tab-btn-octazip" class="tab-btn" data-i18n="tab_octazip">OctaZip (텍스트 아머 직렬화)</button>
+      </nav>
+
+      <!-- TAB 1: OctaVis Optical Media -->
+      <main id="tab-octavis" class="container tab-content active">
         <!-- Encoder Section -->
         <section class="panel">
-          <h2>인코더 (Encoder)</h2>
+          <h2 data-i18n="enc_title">인코더 (Encoder)</h2>
           <div class="control-group">
-            <label for="file-input">전송할 파일 선택</label>
+            <label for="file-input" data-i18n="enc_file_label">전송할 파일 선택</label>
             <input type="file" id="file-input" />
           </div>
           <div class="control-group">
-            <label for="text-input">또는 텍스트 직접 입력</label>
+            <label for="text-input" data-i18n="enc_text_label">또는 텍스트 직접 입력</label>
             <textarea id="text-input" rows="3" placeholder="인코딩할 텍스트 입력..."></textarea>
           </div>
           <div class="control-group">
-            <label for="enc-passphrase">비밀 키 / 패스프레이즈 (암호화 및 카멜레온 프리앰블 시드)</label>
-            <input type="password" id="enc-passphrase" placeholder="비우면 기본 마젠타, 입력 시 프리앰블 색상 가변화 & ChaCha20 암호화" />
+            <label for="enc-passphrase" data-i18n="enc_pass_label">비밀 키 / 패스프레이즈 (ChaCha20 암호화 & 카멜레온 프리앰블)</label>
+            <input type="password" id="enc-passphrase" data-i18n-placeholder="enc_pass_placeholder" placeholder="비우면 평문/기본색, 입력 시 ChaCha20-Poly1305 암호화 & 프리앰블 가변화" />
           </div>
           <div class="control-group row">
             <label>
-              <input type="radio" name="mode" value="static" checked /> 정적 이미지 (PNG)
+              <input type="radio" name="mode" value="static" checked /> <span data-i18n="enc_mode_static">정적 이미지 (PNG)</span>
             </label>
             <label>
-              <input type="radio" name="mode" value="video" /> 비디오 스트림 (WebM)
+              <input type="radio" name="mode" value="video" /> <span data-i18n="enc_mode_video">비디오 스트림 (WebM)</span>
             </label>
             <label>
-              <input type="checkbox" id="camouflage-mode" /> 위장형 그래픽 모드 (게임/레이더 UI 위장)
+              <input type="checkbox" id="camouflage-mode" /> <span data-i18n="enc_camouflage">위장형 그래픽 모드 (게임/레이더 UI 위장)</span>
             </label>
           </div>
-          <button id="encode-btn" class="btn primary">인코드 생성</button>
+          <button id="encode-btn" class="btn primary" data-i18n="btn_encode">인코드 생성</button>
 
           <div id="encode-status" class="status-box"></div>
           <div class="preview-box">
@@ -59,19 +72,18 @@
 
         <!-- Decoder Section -->
         <section class="panel">
-          <h2>디코더 (Decoder)</h2>
-          
+          <h2 data-i18n="dec_title">디코더 (Decoder)</h2>
           <div class="control-group">
-            <label><strong>방법 1: 정적 이미지 / 비디오 파일 첨부 (직접 수신)</strong></label>
-            <p class="hint">카메라 촬영 없이 .png, .webp 또는 .webm 비디오 파일을 직접 넣어 즉시 복원합니다.</p>
+            <label><strong data-i18n="dec_method1_label">방법 1: 정적 이미지 / 비디오 파일 첨부 (직접 수신)</strong></label>
+            <p class="hint" data-i18n="dec_method1_hint">카메라 촬영 없이 .png, .webp 또는 .webm 비디오 파일을 직접 넣어 즉시 복원합니다.</p>
             <input type="file" id="decode-file-input" accept="image/*,video/webm" />
           </div>
 
-          <div class="divider">또는</div>
+          <div class="divider" data-i18n="dec_divider">또는</div>
 
           <div class="control-group">
-            <label><strong>방법 2: 실시간 카메라 스캔</strong></label>
-            <button id="cam-toggle-btn" class="btn secondary">웹캠 스캐너 시작 / 정지</button>
+            <label><strong data-i18n="dec_method2_label">방법 2: 실시간 카메라 스캔</strong></label>
+            <button id="cam-toggle-btn" class="btn secondary" data-i18n="btn_cam_toggle">웹캠 스캐너 시작 / 정지</button>
           </div>
 
           <div class="preview-box">
@@ -80,18 +92,73 @@
           </div>
 
           <div class="control-group">
-            <label for="dec-passphrase">복호화 비밀 키 / 패스프레이즈 (암호화 및 가변 프리앰블 수신 시 필수)</label>
-            <input type="password" id="dec-passphrase" placeholder="인코더에서 설정한 패스프레이즈 입력" />
+            <label for="dec-passphrase" data-i18n="dec_pass_label">복호화 비밀 키 / 패스프레이즈</label>
+            <input type="password" id="dec-passphrase" data-i18n-placeholder="dec_pass_placeholder" placeholder="암호화 또는 가변 프리앰블 적용 시 필수 입력" />
           </div>
 
           <div id="decode-status" class="status-box"></div>
           <div class="control-group">
-            <label>복원된 데이터 (오프라인 메모리 내 유지)</label>
+            <label data-i18n="dec_recovered_label">복원된 데이터 (오프라인 메모리 내 유지)</label>
             <textarea id="decode-output" rows="6" readonly placeholder="디코딩 결과가 여기에 표시됩니다."></textarea>
           </div>
           <div class="action-row">
-            <button id="download-decoded-btn" class="btn primary" style="display: none;">복원 파일 다운로드</button>
-            <button id="clear-mem-btn" class="btn secondary">메모리 즉시 파기 (Wipe)</button>
+            <button id="download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">복원 파일 다운로드</button>
+            <button id="clear-mem-btn" class="btn secondary" data-i18n="btn_wipe_mem">메모리 즉시 파기 (Wipe)</button>
+          </div>
+        </section>
+      </main>
+
+      <!-- TAB 2: OctaZip Text Armor -->
+      <main id="tab-octazip" class="container tab-content" style="display: none;">
+        <!-- OctaZip Encoder -->
+        <section class="panel">
+          <h2 data-i18n="zip_enc_title">OctaZip 텍스트 아머 인코더</h2>
+          <p class="hint" data-i18n="zip_enc_hint">SNS, 메신저 댓글, 이메일 본문 등 텍스트 채널을 위한 고밀도 무손실 직렬화 규격</p>
+          <div class="control-group">
+            <label for="zip-file-input" data-i18n="enc_file_label">전송할 파일 선택</label>
+            <input type="file" id="zip-file-input" />
+          </div>
+          <div class="control-group">
+            <label for="zip-text-input" data-i18n="enc_text_label">또는 텍스트 직접 입력</label>
+            <textarea id="zip-text-input" rows="4" placeholder="인코딩할 텍스트 입력..."></textarea>
+          </div>
+          <div class="control-group">
+            <label for="zip-enc-passphrase" data-i18n="enc_pass_label">비밀 키 / 패스프레이즈</label>
+            <input type="password" id="zip-enc-passphrase" placeholder="비우면 평문 압축, 입력 시 ChaCha20-Poly1305 암호화" />
+          </div>
+          <button id="zip-encode-btn" class="btn primary" data-i18n="zip_btn_encode">텍스트 아머 생성</button>
+
+          <div id="zip-encode-status" class="status-box"></div>
+          <div class="control-group">
+            <label>OctaZip Armor Output</label>
+            <textarea id="zip-output-text" rows="8" readonly placeholder="생성된 아머 텍스트가 여기에 표시됩니다."></textarea>
+          </div>
+          <div class="action-row">
+            <button id="zip-copy-btn" class="btn secondary" style="display: none;" data-i18n="zip_btn_copy">클립보드에 복사</button>
+          </div>
+        </section>
+
+        <!-- OctaZip Decoder -->
+        <section class="panel">
+          <h2 data-i18n="zip_dec_title">OctaZip 텍스트 아머 디코더</h2>
+          <div class="control-group">
+            <label for="zip-decode-input" data-i18n="zip_dec_label">수신한 OctaZip 텍스트 아머 붙여넣기</label>
+            <textarea id="zip-decode-input" rows="8" placeholder="-----BEGIN OCTAZIP V1.0----- ... -----END OCTAZIP-----"></textarea>
+          </div>
+          <div class="control-group">
+            <label for="zip-dec-passphrase" data-i18n="dec_pass_label">복호화 비밀 키 / 패스프레이즈</label>
+            <input type="password" id="zip-dec-passphrase" placeholder="암호화된 경우 패스프레이즈 입력" />
+          </div>
+          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">텍스트 아머 복원 (WASM 해독)</button>
+
+          <div id="zip-decode-status" class="status-box"></div>
+          <div class="control-group">
+            <label data-i18n="dec_recovered_label">복원된 데이터 (오프라인 메모리 내 유지)</label>
+            <textarea id="zip-decode-output" rows="6" readonly placeholder="디코딩 결과가 여기에 표시됩니다."></textarea>
+          </div>
+          <div class="action-row">
+            <button id="zip-download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">복원 파일 다운로드</button>
+            <button id="zip-clear-mem-btn" class="btn secondary" data-i18n="btn_wipe_mem">메모리 즉시 파기 (Wipe)</button>
           </div>
         </section>
       </main>

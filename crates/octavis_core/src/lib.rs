@@ -4,6 +4,7 @@ pub mod cv;
 pub mod ecc;
 pub mod grid;
 pub mod layout;
+pub mod octazip;
 
 use wasm_bindgen::prelude::*;
 use color::ColorState;
@@ -254,6 +255,15 @@ impl OctaVisCodec {
         Self {
             partition: GridSlotPartition::compute(),
         }
+    }
+
+    pub fn encode_octazip_text(&self, payload: &[u8], passphrase: &str) -> Result<String, JsValue> {
+        octazip::encode_octazip(payload, passphrase).map_err(|e| JsValue::from_str(&e))
+    }
+
+    pub fn decode_octazip_text(&self, armor: &str, passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
+        let decoded = octazip::decode_octazip(armor, passphrase).map_err(|e| JsValue::from_str(&e))?;
+        Ok(js_sys::Uint8Array::from(&decoded[..]))
     }
 
     pub fn get_preamble_rgb(&self, passphrase: &str) -> js_sys::Uint8Array {

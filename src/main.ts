@@ -2,13 +2,25 @@ import { OctaVisRenderer } from './renderer';
 import { OctaVisVideoEncoder } from './video';
 import { OctaVisDecoder } from './decoder';
 import { OctaVisVideoDecoder } from './video_decoder';
+import { translations, type Lang } from './i18n';
 
+let currentLang: Lang = 'ko';
 let renderer: OctaVisRenderer;
 let decoder: OctaVisDecoder;
 let videoEncoder: OctaVisVideoEncoder;
 let videoDecoder: OctaVisVideoDecoder;
 
-// Encoder UI
+// Language Elements
+const langKoBtn = document.getElementById('lang-ko') as HTMLButtonElement;
+const langEnBtn = document.getElementById('lang-en') as HTMLButtonElement;
+
+// Tab Elements
+const tabBtnOctavis = document.getElementById('tab-btn-octavis') as HTMLButtonElement;
+const tabBtnOctazip = document.getElementById('tab-btn-octazip') as HTMLButtonElement;
+const tabOctavis = document.getElementById('tab-octavis') as HTMLElement;
+const tabOctazip = document.getElementById('tab-octazip') as HTMLElement;
+
+// OctaVis UI Elements
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const textInput = document.getElementById('text-input') as HTMLTextAreaElement;
 const encPassphrase = document.getElementById('enc-passphrase') as HTMLInputElement;
@@ -19,7 +31,6 @@ const encodeCanvas = document.getElementById('encode-canvas') as HTMLCanvasEleme
 const encodeVideo = document.getElementById('encode-video') as HTMLVideoElement;
 const downloadBtn = document.getElementById('download-btn') as HTMLAnchorElement;
 
-// Decoder UI
 const decodeFileInput = document.getElementById('decode-file-input') as HTMLInputElement;
 const decPassphrase = document.getElementById('dec-passphrase') as HTMLInputElement;
 const camToggleBtn = document.getElementById('cam-toggle-btn') as HTMLButtonElement;
@@ -30,23 +41,81 @@ const decodeOutput = document.getElementById('decode-output') as HTMLTextAreaEle
 const downloadDecodedBtn = document.getElementById('download-decoded-btn') as HTMLButtonElement;
 const clearMemBtn = document.getElementById('clear-mem-btn') as HTMLButtonElement;
 
+// OctaZip UI Elements
+const zipFileInput = document.getElementById('zip-file-input') as HTMLInputElement;
+const zipTextInput = document.getElementById('zip-text-input') as HTMLTextAreaElement;
+const zipEncPassphrase = document.getElementById('zip-enc-passphrase') as HTMLInputElement;
+const zipEncodeBtn = document.getElementById('zip-encode-btn') as HTMLButtonElement;
+const zipEncodeStatus = document.getElementById('zip-encode-status') as HTMLDivElement;
+const zipOutputText = document.getElementById('zip-output-text') as HTMLTextAreaElement;
+const zipCopyBtn = document.getElementById('zip-copy-btn') as HTMLButtonElement;
+
+const zipDecodeInput = document.getElementById('zip-decode-input') as HTMLTextAreaElement;
+const zipDecPassphrase = document.getElementById('zip-dec-passphrase') as HTMLInputElement;
+const zipDecodeBtn = document.getElementById('zip-decode-btn') as HTMLButtonElement;
+const zipDecodeStatus = document.getElementById('zip-decode-status') as HTMLDivElement;
+const zipDecodeOutput = document.getElementById('zip-decode-output') as HTMLTextAreaElement;
+const zipDownloadDecodedBtn = document.getElementById('zip-download-decoded-btn') as HTMLButtonElement;
+const zipClearMemBtn = document.getElementById('zip-clear-mem-btn') as HTMLButtonElement;
+
 let lastDecodedBytes: Uint8Array | null = null;
+let lastZipDecodedBytes: Uint8Array | null = null;
 let cameraStream: MediaStream | null = null;
 let cameraScanTimer: number | null = null;
 
+// Apply i18n
+function applyLanguage(lang: Lang) {
+  currentLang = lang;
+  langKoBtn.classList.toggle('active', lang === 'ko');
+  langEnBtn.classList.toggle('active', lang === 'en');
+
+  const dict = translations[lang];
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n') as keyof typeof dict;
+    if (dict[key]) {
+      el.textContent = dict[key];
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-placeholder') as keyof typeof dict;
+    if (dict[key]) {
+      (el as HTMLInputElement).placeholder = dict[key];
+    }
+  });
+}
+
+langKoBtn.addEventListener('click', () => applyLanguage('ko'));
+langEnBtn.addEventListener('click', () => applyLanguage('en'));
+
+// Tabs switching
+tabBtnOctavis.addEventListener('click', () => {
+  tabBtnOctavis.classList.add('active');
+  tabBtnOctazip.classList.remove('active');
+  tabOctavis.style.display = 'grid';
+  tabOctazip.style.display = 'none';
+});
+
+tabBtnOctazip.addEventListener('click', () => {
+  tabBtnOctazip.classList.add('active');
+  tabBtnOctavis.classList.remove('active');
+  tabOctavis.style.display = 'none';
+  tabOctazip.style.display = 'grid';
+});
+
 async function bootstrap() {
-  encodeStatus.innerText = 'WASM 코어 로딩 중...';
+  encodeStatus.innerText = 'Initializing WASM core...';
   renderer = new OctaVisRenderer();
   await renderer.init();
   decoder = new OctaVisDecoder(renderer.getCodec());
   videoEncoder = new OctaVisVideoEncoder(renderer);
   videoDecoder = new OctaVisVideoDecoder(decoder);
-  encodeStatus.innerText = '준비 완료 (카멜레온 가변 프리앰블 및 위장 모드 활성화됨)';
+  encodeStatus.innerText = currentLang === 'ko' ? '준비 완료 (WASM 활성화됨)' : 'Ready (WASM Active)';
 }
 
-// ---------------------------
-// ENCODER LOGIC
-// ---------------------------
+// -------------------------------------------------------------
+// OCTAVIS OPTICAL ENCODER
+// -------------------------------------------------------------
 encodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
 
@@ -56,7 +125,7 @@ encodeBtn.addEventListener('click', async () => {
   } else if (textInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(textInput.value);
   } else {
-    alert('인코딩할 파일 또는 텍스트를 입력해주세요.');
+    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : 'Please provide input file or text.');
     return;
   }
 
@@ -64,33 +133,27 @@ encodeBtn.addEventListener('click', async () => {
   const pass = encPassphrase.value.trim();
   const isCamouflage = camouflageModeInput.checked;
 
-  // 1. Optional ChaCha20-Poly1305 Encryption
   if (pass.length > 0) {
-    encodeStatus.innerText = 'Argon2 키 파생 및 ChaCha20-Poly1305 암호화 적용 중...';
+    encodeStatus.innerText = currentLang === 'ko' ? 'ChaCha20-Poly1305 암호화 중...' : 'Applying ChaCha20-Poly1305...';
     try {
       binary = codec.encrypt(binary, pass);
     } catch (e: any) {
-      alert(`암호화 실패: ${e?.message || e}`);
+      alert(`Encryption failed: ${e?.message || e}`);
       return;
     }
   }
 
   const mode = (document.querySelector('input[name="mode"]:checked') as HTMLInputElement).value;
-
-  // 2. Brotli compression check
-  encodeStatus.innerText = 'Brotli 압축 적합성 분석 중...';
   const compResult = codec.compress_if_beneficial(binary);
   const isBrotli = compResult[0] === 1;
   const processedData = compResult.slice(1);
-
-  encodeStatus.innerText = `적용 상태: ${pass.length > 0 ? '[ChaCha20 암호화] ' : ''}${isBrotli ? '[Brotli 압축]' : '[원본]'} (${processedData.length} 바이트)`;
 
   if (mode === 'static') {
     encodeVideo.style.display = 'none';
     encodeCanvas.style.display = 'block';
 
     if (processedData.length > 2940) {
-      alert(`정적 모드 용량 초과 (${processedData.length} > 2940 바이트). 비디오 스트림 모드를 사용하세요.`);
+      alert(currentLang === 'ko' ? '정적 모드 용량 초과. 비디오 모드를 사용하세요.' : 'Static capacity exceeded. Use video mode.');
       return;
     }
 
@@ -105,8 +168,8 @@ encodeBtn.addEventListener('click', async () => {
     downloadBtn.href = dataUrl;
     downloadBtn.download = 'octavis_frame.png';
     downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = 'PNG 이미지 다운로드';
-    encodeStatus.innerText = `정적 프레임 인코딩 완료 (${frameCells.length} 셀, 위장 모드: ${isCamouflage ? 'ON' : 'OFF'})`;
+    downloadBtn.innerText = currentLang === 'ko' ? 'PNG 이미지 다운로드' : 'Download PNG Image';
+    encodeStatus.innerText = `${currentLang === 'ko' ? '정적 프레임 생성 완료' : 'Static frame created'} (${frameCells.length} cells)`;
   } else {
     encodeCanvas.style.display = 'none';
     encodeVideo.style.display = 'block';
@@ -122,7 +185,7 @@ encodeBtn.addEventListener('click', async () => {
     }
 
     const preambleRgb = codec.get_preamble_rgb(pass);
-    encodeStatus.innerText = `카멜레온 비디오 스트림 생성 중 (총 ${totalFrames} 프레임)...`;
+    encodeStatus.innerText = currentLang === 'ko' ? '비디오 스트림 생성 중...' : 'Rendering video stream...';
 
     const webmBlob = await videoEncoder.createWebMStream(
       frames,
@@ -139,12 +202,14 @@ encodeBtn.addEventListener('click', async () => {
     downloadBtn.href = url;
     downloadBtn.download = 'octavis_stream.webm';
     downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = 'WebM 비디오 다운로드';
-    encodeStatus.innerText = `WebM 스트림 생성 완료 (${(webmBlob.size / 1024).toFixed(1)} KB)`;
+    downloadBtn.innerText = currentLang === 'ko' ? 'WebM 비디오 다운로드' : 'Download WebM Video';
+    encodeStatus.innerText = `${currentLang === 'ko' ? 'WebM 비디오 생성 완료' : 'WebM video ready'} (${(webmBlob.size / 1024).toFixed(1)} KB)`;
   }
 });
 
-// Helper: Process payload with optional decryption
+// -------------------------------------------------------------
+// OCTAVIS OPTICAL DECODER
+// -------------------------------------------------------------
 function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
   const pass = decPassphrase.value.trim();
   let finalPayload = rawPayload;
@@ -153,8 +218,8 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
     try {
       finalPayload = renderer.getCodec().decrypt(rawPayload, pass);
     } catch {
-      decodeStatus.innerText = `복호화 실패: 올바른 패스프레이즈를 입력하세요.`;
-      decodeOutput.value = `[암호화된 고밀도 난수 페이로드 (${rawPayload.length} 바이트)]\n복호화 키가 일치하지 않습니다.`;
+      decodeStatus.innerText = currentLang === 'ko' ? '복호화 실패: 비밀번호를 확인하세요.' : 'Decryption failed: check passphrase.';
+      decodeOutput.value = `[Encrypted Ciphertext (${rawPayload.length} bytes)]`;
       lastDecodedBytes = rawPayload;
       return;
     }
@@ -165,24 +230,20 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(finalPayload);
     decodeOutput.value = text;
   } catch {
-    decodeOutput.value = `[바이너리 파일 복원됨 (${finalPayload.length} 바이트) - '복원 파일 다운로드'를 누르세요]`;
+    decodeOutput.value = `[Binary Data Recovered (${finalPayload.length} bytes)]`;
   }
-  decodeStatus.innerText = `성공! (${finalPayload.length} 바이트, ${pass.length > 0 ? 'ChaCha20 복호화 완료, ' : ''}Brotli: ${isBrotli ? '적용' : '미적용'})`;
+  decodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : 'Decoded successfully'} (${finalPayload.length} B, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
   downloadDecodedBtn.style.display = 'inline-block';
 }
 
-// ---------------------------
-// DECODER: DIRECT FILE UPLOAD (Image or WebM Video)
-// ---------------------------
 decodeFileInput.addEventListener('change', async () => {
   if (!decodeFileInput.files || !decodeFileInput.files[0]) return;
   const file = decodeFileInput.files[0];
-
   stopCamera();
 
   if (file.type.startsWith('video/') || file.name.endsWith('.webm')) {
     try {
-      decodeStatus.innerText = 'WebM 비디오 직접 프레임 고속 디코딩 중...';
+      decodeStatus.innerText = 'Seeking WebM video frames...';
       const pass = decPassphrase.value.trim();
       const expectedPreambleRgb = renderer.getCodec().get_preamble_rgb(pass);
 
@@ -191,12 +252,11 @@ decodeFileInput.addEventListener('change', async () => {
       });
       handleDecodedPayload(result.payload, result.isBrotli);
     } catch (err: any) {
-      decodeStatus.innerText = `비디오 디코딩 오류: ${err?.message || err}`;
+      decodeStatus.innerText = `Error: ${err?.message || err}`;
     }
   } else {
     const img = new Image();
     const reader = new FileReader();
-
     reader.onload = (e) => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -207,11 +267,11 @@ decodeFileInput.addEventListener('change', async () => {
         ctx.drawImage(img, 0, 0);
 
         try {
-          decodeStatus.innerText = '이미지 격자 분석 및 디코딩 중...';
+          decodeStatus.innerText = 'Analyzing grid and colors...';
           const result = decoder.decodeCanvas(canvas);
           handleDecodedPayload(result.payload, result.isBrotli);
         } catch (err: any) {
-          decodeStatus.innerText = `디코딩 실패: ${err?.message || err}`;
+          decodeStatus.innerText = `Error: ${err?.message || err}`;
         }
       };
       img.src = e.target?.result as string;
@@ -220,13 +280,10 @@ decodeFileInput.addEventListener('change', async () => {
   }
 });
 
-// ---------------------------
-// DECODER: REALTIME CAMERA SCAN
-// ---------------------------
 camToggleBtn.addEventListener('click', async () => {
   if (cameraStream) {
     stopCamera();
-    decodeStatus.innerText = '카메라 스캔 중지됨';
+    decodeStatus.innerText = 'Camera stopped';
   } else {
     try {
       cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -236,11 +293,10 @@ camToggleBtn.addEventListener('click', async () => {
       camVideo.srcObject = cameraStream;
       camVideo.style.display = 'block';
       await camVideo.play();
-
-      decodeStatus.innerText = '카메라 락온 대기 중...';
+      decodeStatus.innerText = 'Camera scanner active...';
       startCameraLoop();
     } catch (e: any) {
-      alert(`카메라 접근 실패: ${e?.message || e}`);
+      alert(`Camera access error: ${e?.message || e}`);
     }
   }
 });
@@ -283,16 +339,13 @@ function startCameraLoop() {
   cameraScanTimer = requestAnimationFrame(scan);
 }
 
-// ---------------------------
-// MEMORY WIPE & EXPORT FILE
-// ---------------------------
 clearMemBtn.addEventListener('click', () => {
   if (lastDecodedBytes) {
     lastDecodedBytes.fill(0);
     lastDecodedBytes = null;
   }
   decodeOutput.value = '';
-  decodeStatus.innerText = '메모리 버퍼가 안전하게 파기되었습니다 (Zeroized).';
+  decodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : 'Memory zeroized.';
   downloadDecodedBtn.style.display = 'none';
 });
 
@@ -304,6 +357,95 @@ downloadDecodedBtn.addEventListener('click', () => {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'recovered_data.bin';
+  a.click();
+});
+
+// -------------------------------------------------------------
+// OCTAZIP TEXT ARMOR ENCODER / DECODER
+// -------------------------------------------------------------
+zipEncodeBtn.addEventListener('click', async () => {
+  let binary: Uint8Array;
+
+  if (zipFileInput.files && zipFileInput.files[0]) {
+    const buf = await zipFileInput.files[0].arrayBuffer();
+    binary = new Uint8Array(buf);
+  } else if (zipTextInput.value.trim().length > 0) {
+    binary = new TextEncoder().encode(zipTextInput.value);
+  } else {
+    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : 'Please provide input file or text.');
+    return;
+  }
+
+  const pass = zipEncPassphrase.value.trim();
+  const codec = renderer.getCodec();
+
+  try {
+    zipEncodeStatus.innerText = 'Generating OctaZip text armor...';
+    const armor = codec.encode_octazip_text(binary, pass);
+    zipOutputText.value = armor;
+    zipCopyBtn.style.display = 'inline-block';
+    zipEncodeStatus.innerText = `${currentLang === 'ko' ? 'OctaZip 아머 생성 완료' : 'OctaZip armor generated'} (${armor.length} chars)`;
+  } catch (err: any) {
+    zipEncodeStatus.innerText = `Error: ${err?.message || err}`;
+  }
+});
+
+zipCopyBtn.addEventListener('click', async () => {
+  if (!zipOutputText.value) return;
+  await navigator.clipboard.writeText(zipOutputText.value);
+  zipCopyBtn.innerText = currentLang === 'ko' ? '복사 완료!' : 'Copied!';
+  setTimeout(() => {
+    zipCopyBtn.innerText = currentLang === 'ko' ? '클립보드에 복사' : 'Copy to Clipboard';
+  }, 2000);
+});
+
+zipDecodeBtn.addEventListener('click', () => {
+  const text = zipDecodeInput.value.trim();
+  if (!text) {
+    alert(currentLang === 'ko' ? 'OctaZip 아머 텍스트를 입력해주세요.' : 'Please paste OctaZip armor text.');
+    return;
+  }
+
+  const pass = zipDecPassphrase.value.trim();
+  const codec = renderer.getCodec();
+
+  try {
+    zipDecodeStatus.innerText = 'Decoding OctaZip armor...';
+    const recovered = codec.decode_octazip_text(text, pass);
+    lastZipDecodedBytes = recovered;
+
+    try {
+      zipDecodeOutput.value = new TextDecoder('utf-8', { fatal: true }).decode(recovered);
+    } catch {
+      zipDecodeOutput.value = `[Binary Data Recovered (${recovered.length} bytes)]`;
+    }
+
+    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : 'Decoded successfully'} (${recovered.length} B)`;
+    zipDownloadDecodedBtn.style.display = 'inline-block';
+  } catch (err: any) {
+    zipDecodeStatus.innerText = `Error: ${err?.message || err}`;
+    zipDecodeOutput.value = '';
+  }
+});
+
+zipClearMemBtn.addEventListener('click', () => {
+  if (lastZipDecodedBytes) {
+    lastZipDecodedBytes.fill(0);
+    lastZipDecodedBytes = null;
+  }
+  zipDecodeOutput.value = '';
+  zipDecodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : 'Memory zeroized.';
+  zipDownloadDecodedBtn.style.display = 'none';
+});
+
+zipDownloadDecodedBtn.addEventListener('click', () => {
+  if (!lastZipDecodedBytes) return;
+  const copy = new Uint8Array(lastZipDecodedBytes);
+  const blob = new Blob([copy.buffer as ArrayBuffer]);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'recovered_octazip.bin';
   a.click();
 });
 
