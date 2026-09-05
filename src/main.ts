@@ -37,8 +37,6 @@ const camToggleBtn = document.getElementById('cam-toggle-btn') as HTMLButtonElem
 const camVideo = document.getElementById('cam-video') as HTMLVideoElement;
 const camCanvas = document.getElementById('cam-canvas') as HTMLCanvasElement;
 const decodeStatus = document.getElementById('decode-status') as HTMLDivElement;
-const decodeOutput = document.getElementById('decode-output') as HTMLTextAreaElement;
-const downloadDecodedBtn = document.getElementById('download-decoded-btn') as HTMLButtonElement;
 const clearMemBtn = document.getElementById('clear-mem-btn') as HTMLButtonElement;
 
 // OctaZip UI Elements
@@ -52,8 +50,6 @@ const zipDecodeFileInput = document.getElementById('zip-decode-file-input') as H
 const zipDecPassphrase = document.getElementById('zip-dec-passphrase') as HTMLInputElement;
 const zipDecodeBtn = document.getElementById('zip-decode-btn') as HTMLButtonElement;
 const zipDecodeStatus = document.getElementById('zip-decode-status') as HTMLDivElement;
-const zipDecodeOutput = document.getElementById('zip-decode-output') as HTMLTextAreaElement;
-const zipDownloadDecodedBtn = document.getElementById('zip-download-decoded-btn') as HTMLButtonElement;
 const zipClearMemBtn = document.getElementById('zip-clear-mem-btn') as HTMLButtonElement;
 
 let lastDecodedBytes: Uint8Array | null = null;
@@ -61,7 +57,7 @@ let lastZipDecodedBytes: Uint8Array | null = null;
 let cameraStream: MediaStream | null = null;
 let cameraScanTimer: number | null = null;
 
-// Helper: trigger direct browser download of a Blob
+// Helper: trigger direct browser file download
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -125,11 +121,11 @@ async function bootstrap() {
 }
 
 // -------------------------------------------------------------
-// OCTAVIS OPTICAL ENCODER
+// OCTAVIS OPTICAL ENCODER: Direct download as .octavis.png or .octavis.webm
 // -------------------------------------------------------------
 encodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
-  let originalName = 'file';
+  let originalName = 'data';
 
   if (fileInput.files && fileInput.files[0]) {
     const file = fileInput.files[0];
@@ -138,7 +134,7 @@ encodeBtn.addEventListener('click', async () => {
     binary = new Uint8Array(buf);
   } else if (textInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(textInput.value);
-    originalName = 'message';
+    originalName = 'note';
   } else {
     alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请提供要编码的文件或文本。' : 'Please provide input file or text.');
     return;
@@ -179,7 +175,6 @@ encodeBtn.addEventListener('click', async () => {
       camouflageMode: isCamouflage,
     });
 
-    // Directly download the static PNG
     encodeCanvas.toBlob((blob) => {
       if (blob) {
         triggerDownload(blob, `${originalName}.octavis.png`);
@@ -213,7 +208,6 @@ encodeBtn.addEventListener('click', async () => {
       }
     );
 
-    // Directly download the WebM video
     triggerDownload(webmBlob, `${originalName}.octavis.webm`);
     const url = URL.createObjectURL(webmBlob);
     encodeVideo.src = url;
@@ -222,9 +216,9 @@ encodeBtn.addEventListener('click', async () => {
 });
 
 // -------------------------------------------------------------
-// OCTAVIS OPTICAL DECODER
+// OCTAVIS OPTICAL DECODER: Direct restoration and download
 // -------------------------------------------------------------
-function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
+function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean, sourceFilename: string) {
   const pass = decPassphrase.value.trim();
   let finalPayload = rawPayload;
 
@@ -232,22 +226,20 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
     try {
       finalPayload = renderer.getCodec().decrypt(rawPayload, pass);
     } catch {
-      decodeStatus.innerText = currentLang === 'ko' ? '복호화 실패: 비밀번호를 확인하세요.' : currentLang === 'zh' ? '解密失败：请核对密码。' : 'Decryption failed: check passphrase.';
-      decodeOutput.value = `[Encrypted Ciphertext (${rawPayload.length} bytes)]`;
-      lastDecodedBytes = rawPayload;
+      decodeStatus.innerText = currentLang === 'ko' ? '복호화 실패: 올바른 패스프레이즈를 입력하세요.' : currentLang === 'zh' ? '解密失败：请核对密码。' : 'Decryption failed: incorrect passphrase.';
       return;
     }
   }
 
   lastDecodedBytes = finalPayload;
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(finalPayload);
-    decodeOutput.value = text;
-  } catch {
-    decodeOutput.value = `[Binary Data Recovered (${finalPayload.length} bytes)]`;
-  }
-  decodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : currentLang === 'zh' ? '解码成功' : 'Decoded successfully'} (${finalPayload.length} B, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
-  downloadDecodedBtn.style.display = 'inline-flex';
+
+  // Direct download restored original file
+  const copy = new Uint8Array(finalPayload);
+  const blob = new Blob([copy.buffer as ArrayBuffer]);
+  const outName = sourceFilename.replace(/\.octavis\.(png|webm)$/i, '') || 'restored_data';
+  triggerDownload(blob, `${outName}.restored.bin`);
+
+  decodeStatus.innerText = `${currentLang === 'ko' ? '복구 완료 및 다운로드됨' : currentLang === 'zh' ? '还原成功并已自动下载' : 'Restored and downloaded successfully'} (${(finalPayload.length / 1024).toFixed(1)} KB, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
 }
 
 decodeFileInput.addEventListener('change', async () => {
@@ -257,14 +249,14 @@ decodeFileInput.addEventListener('change', async () => {
 
   if (file.type.startsWith('video/') || file.name.endsWith('.webm')) {
     try {
-      decodeStatus.innerText = 'Seeking WebM video frames...';
+      decodeStatus.innerText = 'Decoding WebM frames via WASM...';
       const pass = decPassphrase.value.trim();
       const expectedPreambleRgb = renderer.getCodec().get_preamble_rgb(pass);
 
       const result = await videoDecoder.decodeWebMFile(file, expectedPreambleRgb, (info) => {
         decodeStatus.innerText = info.status;
       });
-      handleDecodedPayload(result.payload, result.isBrotli);
+      handleDecodedPayload(result.payload, result.isBrotli, file.name);
     } catch (err: any) {
       decodeStatus.innerText = `Error: ${err?.message || err}`;
     }
@@ -281,9 +273,9 @@ decodeFileInput.addEventListener('change', async () => {
         ctx.drawImage(img, 0, 0);
 
         try {
-          decodeStatus.innerText = 'Analyzing grid and colors...';
+          decodeStatus.innerText = 'Analyzing grid and colors via WASM...';
           const result = decoder.decodeCanvas(canvas);
-          handleDecodedPayload(result.payload, result.isBrotli);
+          handleDecodedPayload(result.payload, result.isBrotli, file.name);
         } catch (err: any) {
           decodeStatus.innerText = `Error: ${err?.message || err}`;
         }
@@ -345,7 +337,9 @@ function startCameraLoop() {
             payload = new Uint8Array(decoder.getCodec().decompress_brotli(payload));
           } catch {}
         }
-        handleDecodedPayload(payload, res.isBrotli);
+        stopCamera();
+        handleDecodedPayload(payload, res.isBrotli, 'camera_scan');
+        return;
       }
     }
     cameraScanTimer = requestAnimationFrame(scan);
@@ -358,20 +352,11 @@ clearMemBtn.addEventListener('click', () => {
     lastDecodedBytes.fill(0);
     lastDecodedBytes = null;
   }
-  decodeOutput.value = '';
   decodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : currentLang === 'zh' ? '内存已安全粉碎。' : 'Memory zeroized.';
-  downloadDecodedBtn.style.display = 'none';
-});
-
-downloadDecodedBtn.addEventListener('click', () => {
-  if (!lastDecodedBytes) return;
-  const copy = new Uint8Array(lastDecodedBytes);
-  const blob = new Blob([copy.buffer as ArrayBuffer]);
-  triggerDownload(blob, 'recovered_payload.bin');
 });
 
 // -------------------------------------------------------------
-// OCTAZIP BINARY ARCHIVER (.octazip)
+// OCTAZIP PACK/UNPACK: 100% direct file download/restore
 // -------------------------------------------------------------
 zipEncodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
@@ -394,10 +379,10 @@ zipEncodeBtn.addEventListener('click', async () => {
   const codec = renderer.getCodec();
 
   try {
-    zipEncodeStatus.innerText = 'Packing into .octazip binary package...';
+    zipEncodeStatus.innerText = 'Packing into .octazip package...';
     const packageBytes = codec.pack_octazip(binary, pass);
     
-    // Trigger direct download of .octazip file
+    // Direct file download as *.octazip
     const copy = new Uint8Array(packageBytes);
     const blob = new Blob([copy.buffer as ArrayBuffer], { type: 'application/octet-stream' });
     triggerDownload(blob, `${originalName}.octazip`);
@@ -421,21 +406,19 @@ zipDecodeBtn.addEventListener('click', async () => {
   const codec = renderer.getCodec();
 
   try {
-    zipDecodeStatus.innerText = 'Unpacking .octazip archive via WASM...';
+    zipDecodeStatus.innerText = 'Unpacking .octazip via WASM...';
     const recovered = codec.unpack_octazip(packageBytes, pass);
     lastZipDecodedBytes = recovered;
 
-    try {
-      zipDecodeOutput.value = new TextDecoder('utf-8', { fatal: true }).decode(recovered);
-    } catch {
-      zipDecodeOutput.value = `[Binary Data Recovered (${recovered.length} bytes)]`;
-    }
+    // Direct file download of the restored original payload
+    const copy = new Uint8Array(recovered);
+    const blob = new Blob([copy.buffer as ArrayBuffer]);
+    const originalName = file.name.replace(/\.octazip$/i, '') || 'restored_data';
+    triggerDownload(blob, `${originalName}.restored.bin`);
 
-    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '.octazip 복구 성공' : currentLang === 'zh' ? '.octazip 还原成功' : '.octazip restored successfully'} (${(recovered.length / 1024).toFixed(1)} KB)`;
-    zipDownloadDecodedBtn.style.display = 'inline-flex';
+    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '.octazip 복구 및 다운로드 성공' : currentLang === 'zh' ? '.octazip 还原并已自动下载' : '.octazip restored and downloaded'} (${(recovered.length / 1024).toFixed(1)} KB)`;
   } catch (err: any) {
     zipDecodeStatus.innerText = `Error: ${err?.message || err}`;
-    zipDecodeOutput.value = '';
   }
 });
 
@@ -444,16 +427,7 @@ zipClearMemBtn.addEventListener('click', () => {
     lastZipDecodedBytes.fill(0);
     lastZipDecodedBytes = null;
   }
-  zipDecodeOutput.value = '';
   zipDecodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : currentLang === 'zh' ? '内存已安全粉碎。' : 'Memory zeroized.';
-  zipDownloadDecodedBtn.style.display = 'none';
-});
-
-zipDownloadDecodedBtn.addEventListener('click', () => {
-  if (!lastZipDecodedBytes) return;
-  const copy = new Uint8Array(lastZipDecodedBytes);
-  const blob = new Blob([copy.buffer as ArrayBuffer]);
-  triggerDownload(blob, 'recovered_data.bin');
 });
 
 bootstrap();

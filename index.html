@@ -59,7 +59,7 @@
               <input type="checkbox" id="camouflage-mode" /> <span data-i18n="enc_camouflage">Camouflage Graphic Mode (Game/Radar UI Style)</span>
             </label>
           </div>
-          <button id="encode-btn" class="btn primary" data-i18n="btn_encode">Encode & Download</button>
+          <button id="encode-btn" class="btn primary" data-i18n="btn_encode">Encode & Download File</button>
 
           <div id="encode-status" class="status-box"></div>
           <div class="preview-box">
@@ -95,12 +95,7 @@
           </div>
 
           <div id="decode-status" class="status-box"></div>
-          <div class="control-group">
-            <label data-i18n="dec_recovered_label">Decoded Payload Result</label>
-            <textarea id="decode-output" rows="5" readonly placeholder="Decoded results appear here."></textarea>
-          </div>
           <div class="action-row">
-            <button id="download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">Download Recovered File</button>
             <button id="clear-mem-btn" class="btn secondary" data-i18n="btn_wipe_mem">Wipe Memory (Zeroize)</button>
           </div>
         </section>
@@ -134,22 +129,17 @@
           <h2 data-i18n="zip_dec_title">OctaZip Package Decoder</h2>
           <div class="control-group">
             <label for="zip-decode-file-input" data-i18n="zip_dec_label">Upload .octazip File to Restore</label>
-            <p class="hint" data-i18n="zip_dec_hint">Upload your .octazip archive to unpack and recover the original file via WASM.</p>
+            <p class="hint" data-i18n="zip_dec_hint">Upload your .octazip archive to unpack and automatically download the original file via WASM.</p>
             <input type="file" id="zip-decode-file-input" accept=".octazip,application/octet-stream" />
           </div>
           <div class="control-group">
             <label for="zip-dec-passphrase" data-i18n="dec_pass_label">Decryption Passphrase</label>
             <input type="password" id="zip-dec-passphrase" placeholder="Required if payload was encrypted" />
           </div>
-          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Decode .octazip & Restore</button>
+          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Decode .octazip & Download Original</button>
 
           <div id="zip-decode-status" class="status-box"></div>
-          <div class="control-group">
-            <label data-i18n="dec_recovered_label">Decoded Payload Result</label>
-            <textarea id="zip-decode-output" rows="6" readonly placeholder="Recovered content will appear here."></textarea>
-          </div>
           <div class="action-row">
-            <button id="zip-download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">Download Recovered File</button>
             <button id="zip-clear-mem-btn" class="btn secondary" data-i18n="btn_wipe_mem">Wipe Memory (Zeroize)</button>
           </div>
         </section>
