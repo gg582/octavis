@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Rust / Cargo
+target/
+crates/**/target/
+**/*.rs.bk
+Cargo.lock
+
+# Vite / IDE
+.DS_Store
+*.local
+.vscode/
+.idea/
+
+# WASM build output in src (built during CI/build)
+# Keep src/wasm tracked or ignored? We build it in CI via wasm-pack, but keeping it clean:
+# crates/octavis_core/target is ignored

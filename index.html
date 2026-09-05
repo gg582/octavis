@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OctaVis - Optical Data Codec</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>OctaVis (v1.0)</h1>
+        <p class="subtitle">60셀 육각 격자 (10,621칸) · 8색(3비트) 광학 전송 규격 (ChaCha20-Poly1305 암호화 탑재)</p>
+      </header>
+
+      <main class="container">
+        <!-- Encoder Section -->
+        <section class="panel">
+          <h2>인코더 (Encoder)</h2>
+          <div class="control-group">
+            <label for="file-input">전송할 파일 선택</label>
+            <input type="file" id="file-input" />
+          </div>
+          <div class="control-group">
+            <label for="text-input">또는 텍스트 직접 입력</label>
+            <textarea id="text-input" rows="4" placeholder="인코딩할 텍스트 입력..."></textarea>
+          </div>
+          <div class="control-group">
+            <label for="enc-passphrase">비밀 키 / 패스프레이즈 (선택 사항: 암호화 전송)</label>
+            <input type="password" id="enc-passphrase" placeholder="비우면 평문 전송, 입력 시 ChaCha20-Poly1305 암호화" />
+          </div>
+          <div class="control-group row">
+            <label>
+              <input type="radio" name="mode" value="static" checked /> 정적 이미지 (PNG)
+            </label>
+            <label>
+              <input type="radio" name="mode" value="video" /> 비디오 스트림 (WebM)
+            </label>
+          </div>
+          <button id="encode-btn" class="btn primary">인코드 생성</button>
+
+          <div id="encode-status" class="status-box"></div>
+          <div class="preview-box">
+            <canvas id="encode-canvas"></canvas>
+            <video id="encode-video" controls style="display: none;"></video>
+          </div>
+          <div class="action-row">
+            <a id="download-btn" class="btn secondary" style="display: none;">다운로드</a>
+          </div>
+        </section>
+
+        <!-- Decoder Section -->
+        <section class="panel">
+          <h2>디코더 (Decoder)</h2>
+          
+          <div class="control-group">
+            <label><strong>방법 1: 정적 이미지 / 비디오 파일 첨부 (직접 수신)</strong></label>
+            <p class="hint">카메라 촬영 없이 .png, .webp 또는 .webm 비디오 파일을 직접 넣어 즉시 복원합니다.</p>
+            <input type="file" id="decode-file-input" accept="image/*,video/webm" />
+          </div>
+
+          <div class="divider">또는</div>
+
+          <div class="control-group">
+            <label><strong>방법 2: 실시간 카메라 스캔</strong></label>
+            <button id="cam-toggle-btn" class="btn secondary">웹캠 스캐너 시작 / 정지</button>
+          </div>
+
+          <div class="preview-box">
+            <video id="cam-video" playsinline style="display: none;"></video>
+            <canvas id="cam-canvas" style="display: none;"></canvas>
+          </div>
+
+          <div class="control-group">
+            <label for="dec-passphrase">복호화 비밀 키 / 패스프레이즈 (암호화된 경우 입력)</label>
+            <input type="password" id="dec-passphrase" placeholder="암호화된 스트림인 경우 패스프레이즈 입력" />
+          </div>
+
+          <div id="decode-status" class="status-box"></div>
+          <div class="control-group">
+            <label>복원된 데이터</label>
+            <textarea id="decode-output" rows="6" readonly placeholder="디코딩 결과가 여기에 표시됩니다."></textarea>
+          </div>
+          <div class="action-row">
+            <button id="download-decoded-btn" class="btn primary" style="display: none;">복원 파일 다운로드</button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
