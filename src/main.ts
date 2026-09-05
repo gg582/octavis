@@ -154,6 +154,10 @@ encodeBtn.addEventListener('click', async () => {
     }
   }
 
+  // Pack original filename envelope so restoration recovers the exact filename
+  const fileNameToSave = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'message.txt';
+  binary = codec.pack_file_envelope(fileNameToSave, binary);
+
   const mode = (document.querySelector('input[name="mode"]:checked') as HTMLInputElement).value;
   const compResult = codec.compress_if_beneficial(binary);
   const isBrotli = compResult[0] === 1;
@@ -218,7 +222,7 @@ encodeBtn.addEventListener('click', async () => {
 // -------------------------------------------------------------
 // OCTAVIS OPTICAL DECODER: Direct restoration and download
 // -------------------------------------------------------------
-function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean, sourceFilename: string) {
+function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean, _sourceFilename: string) {
   const pass = decPassphrase.value.trim();
   let finalPayload = rawPayload;
 
@@ -233,11 +237,17 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean, sourceF
 
   lastDecodedBytes = finalPayload;
 
+  // Unpack original filename envelope
+  const unpacked = renderer.getCodec().unpack_file_envelope(finalPayload);
+  const nameLen = unpacked[0];
+  const nameBytes = unpacked.slice(1, 1 + nameLen);
+  const recoveredPayload = unpacked.slice(1 + nameLen);
+  const originalFileName = new TextDecoder().decode(nameBytes) || 'restored_data.bin';
+
   // Direct download restored original file
-  const copy = new Uint8Array(finalPayload);
+  const copy = new Uint8Array(recoveredPayload);
   const blob = new Blob([copy.buffer as ArrayBuffer]);
-  const outName = sourceFilename.replace(/\.octavis\.(png|webm)$/i, '') || 'restored_data';
-  triggerDownload(blob, `${outName}.restored.bin`);
+  triggerDownload(blob, originalFileName);
 
   decodeStatus.innerText = `${currentLang === 'ko' ? '복구 완료 및 다운로드됨' : currentLang === 'zh' ? '还原成功并已自动下载' : 'Restored and downloaded successfully'} (${(finalPayload.length / 1024).toFixed(1)} KB, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
 }
@@ -380,6 +390,8 @@ zipEncodeBtn.addEventListener('click', async () => {
 
   try {
     zipEncodeStatus.innerText = 'Packing into .octazip package...';
+    const fileNameToSave = zipFileInput.files && zipFileInput.files[0] ? zipFileInput.files[0].name : 'note.txt';
+    binary = codec.pack_file_envelope(fileNameToSave, binary);
     const packageBytes = codec.pack_octazip(binary, pass);
     
     // Direct file download as *.octazip
@@ -410,11 +422,17 @@ zipDecodeBtn.addEventListener('click', async () => {
     const recovered = codec.unpack_octazip(packageBytes, pass);
     lastZipDecodedBytes = recovered;
 
+    // Unpack original filename envelope
+    const unpacked = codec.unpack_file_envelope(recovered);
+    const nameLen = unpacked[0];
+    const nameBytes = unpacked.slice(1, 1 + nameLen);
+    const recoveredPayload = unpacked.slice(1 + nameLen);
+    const originalFileName = new TextDecoder().decode(nameBytes) || file.name.replace(/\.octazip$/i, '') || 'restored_data.bin';
+
     // Direct file download of the restored original payload
-    const copy = new Uint8Array(recovered);
+    const copy = new Uint8Array(recoveredPayload);
     const blob = new Blob([copy.buffer as ArrayBuffer]);
-    const originalName = file.name.replace(/\.octazip$/i, '') || 'restored_data';
-    triggerDownload(blob, `${originalName}.restored.bin`);
+    triggerDownload(blob, originalFileName);
 
     zipDecodeStatus.innerText = `${currentLang === 'ko' ? '.octazip 복구 및 다운로드 성공' : currentLang === 'zh' ? '.octazip 还原并已自动下载' : '.octazip restored and downloaded'} (${(recovered.length / 1024).toFixed(1)} KB)`;
   } catch (err: any) {

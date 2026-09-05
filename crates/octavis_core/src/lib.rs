@@ -4,6 +4,7 @@ pub mod cv;
 pub mod ecc;
 pub mod grid;
 pub mod layout;
+pub mod file_envelope;
 pub mod octazip;
 
 use wasm_bindgen::prelude::*;
@@ -324,6 +325,23 @@ impl OctaVisCodec {
         result.extend_from_slice(&meta.total_frames.to_be_bytes());
         result.extend_from_slice(&meta.payload);
         Ok(js_sys::Uint8Array::from(&result[..]))
+    }
+
+    
+    pub fn pack_file_envelope(&self, filename: &str, data: &[u8]) -> js_sys::Uint8Array {
+        let envelope = file_envelope::pack_file_envelope(filename, data);
+        js_sys::Uint8Array::from(&envelope[..])
+    }
+
+    pub fn unpack_file_envelope(&self, envelope: &[u8]) -> js_sys::Uint8Array {
+        let (name, data) = file_envelope::unpack_file_envelope(envelope);
+        let name_bytes = name.as_bytes();
+        let name_len = name_bytes.len().min(255) as u8;
+        let mut out = Vec::with_capacity(1 + name_len as usize + data.len());
+        out.push(name_len);
+        out.extend_from_slice(&name_bytes[..name_len as usize]);
+        out.extend_from_slice(&data);
+        js_sys::Uint8Array::from(&out[..])
     }
 
     pub fn get_all_coords(&self) -> js_sys::Int32Array {
