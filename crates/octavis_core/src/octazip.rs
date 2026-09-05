@@ -1,12 +1,11 @@
 use crate::crypto::{decrypt_payload, encrypt_payload};
 use std::io::Write;
 
-pub const OCTAZIP_MAGIC: &[u8; 4] = b"OZIP";
+pub const OCTAZIP_MAGIC: &[u8; 8] = b"OCTAZIP1";
 
-/// Encodes binary payload into standalone binary archive format (.ozip).
-/// Pipeline: [ChaCha20-Poly1305 Encrypt if passphrase] -> [Brotli Compression] -> [CRC16 + Flags] -> Binary Envelope
-pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
-    // 1. Optional encryption
+/// Packs raw payload bytes into a .octazip binary package
+/// Envelope: [Magic "OCTAZIP1" (8B)] + [Flags (1B): (encrypted << 1) | brotli] + [CRC16 (2B)] + [Data]
+pub fn pack_octazip(payload: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
     let encrypted_flag: u8;
     let data_to_compress: Vec<u8>;
     if !passphrase.trim().is_empty() {
@@ -17,7 +16,6 @@ pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<Vec<u8>, Strin
         data_to_compress = payload.to_vec();
     }
 
-    // 2. Brotli compression check
     let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 9, 22);
     let mut brotli_flag: u8 = 0;
     let mut final_bytes = data_to_compress.clone();
@@ -29,38 +27,36 @@ pub fn encode_octazip(payload: &[u8], passphrase: &str) -> Result<Vec<u8>, Strin
         }
     }
 
-    // 3. Binary envelope: [Magic "OZIP" (4B)] + [Flags (1B): (enc << 1) | brotli] + [CRC16 (2B)] + [Payload (NB)]
     let crc = crc16::State::<crc16::XMODEM>::calculate(&final_bytes);
     let flags = (encrypted_flag << 1) | brotli_flag;
 
-    let mut envelope = Vec::with_capacity(7 + final_bytes.len());
-    envelope.extend_from_slice(OCTAZIP_MAGIC);
-    envelope.push(flags);
-    envelope.extend_from_slice(&crc.to_be_bytes());
-    envelope.extend_from_slice(&final_bytes);
+    let mut package = Vec::with_capacity(11 + final_bytes.len());
+    package.extend_from_slice(OCTAZIP_MAGIC);
+    package.push(flags);
+    package.extend_from_slice(&crc.to_be_bytes());
+    package.extend_from_slice(&final_bytes);
 
-    Ok(envelope)
+    Ok(package)
 }
 
-/// Decodes an OctaZip binary archive into raw payload bytes.
-pub fn decode_octazip(envelope: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
-    if envelope.len() < 7 || &envelope[0..4] != OCTAZIP_MAGIC {
-        return Err("Invalid OctaZip binary archive header".to_string());
+/// Unpacks a .octazip package back into original raw payload bytes
+pub fn unpack_octazip(package: &[u8], passphrase: &str) -> Result<Vec<u8>, String> {
+    if package.len() < 11 || &package[0..8] != OCTAZIP_MAGIC {
+        return Err("Invalid .octazip format or header corrupted".to_string());
     }
 
-    let flags = envelope[4];
+    let flags = package[8];
     let encrypted_flag = (flags >> 1) & 1;
     let brotli_flag = flags & 1;
 
-    let expected_crc = u16::from_be_bytes([envelope[5], envelope[6]]);
-    let compressed_data = &envelope[7..];
+    let expected_crc = u16::from_be_bytes([package[9], package[10]]);
+    let compressed_data = &package[11..];
 
     let actual_crc = crc16::State::<crc16::XMODEM>::calculate(compressed_data);
     if actual_crc != expected_crc {
-        return Err("OctaZip CRC-16 checksum verification failed".to_string());
+        return Err("CRC-16 integrity checksum failed on .octazip".to_string());
     }
 
-    // Decompress Brotli if flag set
     let decompressed = if brotli_flag == 1 {
         let mut out = Vec::new();
         let mut reader = brotli::Decompressor::new(compressed_data, 4096);
@@ -71,10 +67,9 @@ pub fn decode_octazip(envelope: &[u8], passphrase: &str) -> Result<Vec<u8>, Stri
         compressed_data.to_vec()
     };
 
-    // Decrypt if encrypted flag set
     if encrypted_flag == 1 {
         if passphrase.trim().is_empty() {
-            return Err("OctaZip archive is encrypted. Passphrase required.".to_string());
+            return Err("This .octazip file is encrypted. Passphrase required.".to_string());
         }
         decrypt_payload(&decompressed, passphrase)
     } else {

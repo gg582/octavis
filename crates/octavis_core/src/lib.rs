@@ -257,16 +257,16 @@ impl OctaVisCodec {
         }
     }
 
-    /// Encodes binary payload into standalone binary archive (.ozip)
-    pub fn encode_octazip(&self, payload: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
-        let envelope = octazip::encode_octazip(payload, passphrase).map_err(|e| JsValue::from_str(&e))?;
-        Ok(js_sys::Uint8Array::from(&envelope[..]))
+    /// Packs raw binary data into a standalone .octazip binary package
+    pub fn pack_octazip(&self, payload: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
+        let package = octazip::pack_octazip(payload, passphrase).map_err(|e| JsValue::from_str(&e))?;
+        Ok(js_sys::Uint8Array::from(&package[..]))
     }
 
-    /// Decodes an OctaZip binary archive (.ozip) into original payload bytes
-    pub fn decode_octazip(&self, archive_bytes: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
-        let decoded = octazip::decode_octazip(archive_bytes, passphrase).map_err(|e| JsValue::from_str(&e))?;
-        Ok(js_sys::Uint8Array::from(&decoded[..]))
+    /// Unpacks a .octazip binary package into original data
+    pub fn unpack_octazip(&self, package_bytes: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
+        let unpacked = octazip::unpack_octazip(package_bytes, passphrase).map_err(|e| JsValue::from_str(&e))?;
+        Ok(js_sys::Uint8Array::from(&unpacked[..]))
     }
 
     pub fn get_preamble_rgb(&self, passphrase: &str) -> js_sys::Uint8Array {

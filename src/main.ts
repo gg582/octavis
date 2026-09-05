@@ -30,7 +30,6 @@ const encodeBtn = document.getElementById('encode-btn') as HTMLButtonElement;
 const encodeStatus = document.getElementById('encode-status') as HTMLDivElement;
 const encodeCanvas = document.getElementById('encode-canvas') as HTMLCanvasElement;
 const encodeVideo = document.getElementById('encode-video') as HTMLVideoElement;
-const downloadBtn = document.getElementById('download-btn') as HTMLAnchorElement;
 
 const decodeFileInput = document.getElementById('decode-file-input') as HTMLInputElement;
 const decPassphrase = document.getElementById('dec-passphrase') as HTMLInputElement;
@@ -48,7 +47,6 @@ const zipTextInput = document.getElementById('zip-text-input') as HTMLTextAreaEl
 const zipEncPassphrase = document.getElementById('zip-enc-passphrase') as HTMLInputElement;
 const zipEncodeBtn = document.getElementById('zip-encode-btn') as HTMLButtonElement;
 const zipEncodeStatus = document.getElementById('zip-encode-status') as HTMLDivElement;
-const zipDownloadBtn = document.getElementById('zip-download-btn') as HTMLAnchorElement;
 
 const zipDecodeFileInput = document.getElementById('zip-decode-file-input') as HTMLInputElement;
 const zipDecPassphrase = document.getElementById('zip-dec-passphrase') as HTMLInputElement;
@@ -62,6 +60,18 @@ let lastDecodedBytes: Uint8Array | null = null;
 let lastZipDecodedBytes: Uint8Array | null = null;
 let cameraStream: MediaStream | null = null;
 let cameraScanTimer: number | null = null;
+
+// Helper: trigger direct browser download of a Blob
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function applyLanguage(lang: Lang) {
   currentLang = lang;
@@ -119,12 +129,16 @@ async function bootstrap() {
 // -------------------------------------------------------------
 encodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
+  let originalName = 'file';
 
   if (fileInput.files && fileInput.files[0]) {
-    const buf = await fileInput.files[0].arrayBuffer();
+    const file = fileInput.files[0];
+    originalName = file.name.replace(/\.[^/.]+$/, '');
+    const buf = await file.arrayBuffer();
     binary = new Uint8Array(buf);
   } else if (textInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(textInput.value);
+    originalName = 'message';
   } else {
     alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请提供要编码的文件或文本。' : 'Please provide input file or text.');
     return;
@@ -165,12 +179,13 @@ encodeBtn.addEventListener('click', async () => {
       camouflageMode: isCamouflage,
     });
 
-    const dataUrl = encodeCanvas.toDataURL('image/png');
-    downloadBtn.href = dataUrl;
-    downloadBtn.download = 'octavis_frame.png';
-    downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = currentLang === 'ko' ? 'PNG 이미지 다운로드' : currentLang === 'zh' ? '下载 PNG 图片' : 'Download PNG Image';
-    encodeStatus.innerText = `${currentLang === 'ko' ? '정적 프레임 생성 완료' : currentLang === 'zh' ? '静态帧生成完毕' : 'Static frame created'} (${frameCells.length} cells)`;
+    // Directly download the static PNG
+    encodeCanvas.toBlob((blob) => {
+      if (blob) {
+        triggerDownload(blob, `${originalName}.octavis.png`);
+        encodeStatus.innerText = `${currentLang === 'ko' ? 'PNG 파일 다운로드 완료' : currentLang === 'zh' ? 'PNG 图片已直接下载' : 'PNG downloaded successfully'} (${(blob.size / 1024).toFixed(1)} KB)`;
+      }
+    }, 'image/png');
   } else {
     encodeCanvas.style.display = 'none';
     encodeVideo.style.display = 'block';
@@ -198,13 +213,11 @@ encodeBtn.addEventListener('click', async () => {
       }
     );
 
+    // Directly download the WebM video
+    triggerDownload(webmBlob, `${originalName}.octavis.webm`);
     const url = URL.createObjectURL(webmBlob);
     encodeVideo.src = url;
-    downloadBtn.href = url;
-    downloadBtn.download = 'octavis_stream.webm';
-    downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = currentLang === 'ko' ? 'WebM 비디오 다운로드' : currentLang === 'zh' ? '下载 WebM 视频' : 'Download WebM Video';
-    encodeStatus.innerText = `${currentLang === 'ko' ? 'WebM 비디오 생성 완료' : currentLang === 'zh' ? 'WebM 视频生成完毕' : 'WebM video ready'} (${(webmBlob.size / 1024).toFixed(1)} KB)`;
+    encodeStatus.innerText = `${currentLang === 'ko' ? 'WebM 비디오 다운로드 완료' : currentLang === 'zh' ? 'WebM 视频已直接下载' : 'WebM video downloaded'} (${(webmBlob.size / 1024).toFixed(1)} KB)`;
   }
 });
 
@@ -234,7 +247,7 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
     decodeOutput.value = `[Binary Data Recovered (${finalPayload.length} bytes)]`;
   }
   decodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : currentLang === 'zh' ? '解码成功' : 'Decoded successfully'} (${finalPayload.length} B, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
-  downloadDecodedBtn.style.display = 'inline-block';
+  downloadDecodedBtn.style.display = 'inline-flex';
 }
 
 decodeFileInput.addEventListener('change', async () => {
@@ -354,24 +367,24 @@ downloadDecodedBtn.addEventListener('click', () => {
   if (!lastDecodedBytes) return;
   const copy = new Uint8Array(lastDecodedBytes);
   const blob = new Blob([copy.buffer as ArrayBuffer]);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'recovered_data.bin';
-  a.click();
+  triggerDownload(blob, 'recovered_payload.bin');
 });
 
 // -------------------------------------------------------------
-// OCTAZIP BINARY ARCHIVER (.ozip)
+// OCTAZIP BINARY ARCHIVER (.octazip)
 // -------------------------------------------------------------
 zipEncodeBtn.addEventListener('click', async () => {
   let binary: Uint8Array;
+  let originalName = 'archive';
 
   if (zipFileInput.files && zipFileInput.files[0]) {
-    const buf = await zipFileInput.files[0].arrayBuffer();
+    const file = zipFileInput.files[0];
+    originalName = file.name.replace(/\.[^/.]+$/, '');
+    const buf = await file.arrayBuffer();
     binary = new Uint8Array(buf);
   } else if (zipTextInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(zipTextInput.value);
+    originalName = 'note';
   } else {
     alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请提供要编码的文件或文本。' : 'Please provide input file or text.');
     return;
@@ -381,18 +394,15 @@ zipEncodeBtn.addEventListener('click', async () => {
   const codec = renderer.getCodec();
 
   try {
-    zipEncodeStatus.innerText = 'Packing binary .ozip archive...';
-    const archiveBytes = codec.encode_octazip(binary, pass);
+    zipEncodeStatus.innerText = 'Packing into .octazip binary package...';
+    const packageBytes = codec.pack_octazip(binary, pass);
     
-    const copy = new Uint8Array(archiveBytes);
+    // Trigger direct download of .octazip file
+    const copy = new Uint8Array(packageBytes);
     const blob = new Blob([copy.buffer as ArrayBuffer], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    zipDownloadBtn.href = url;
-    zipDownloadBtn.download = 'archive.ozip';
-    zipDownloadBtn.style.display = 'inline-flex';
-    zipDownloadBtn.innerText = currentLang === 'ko' ? '.ozip 파일 다운로드' : currentLang === 'zh' ? '下载 .ozip 归档' : 'Download .ozip Archive';
+    triggerDownload(blob, `${originalName}.octazip`);
 
-    zipEncodeStatus.innerText = `${currentLang === 'ko' ? '.ozip 바이너리 아카이브 생성 완료' : currentLang === 'zh' ? '.ozip 二进制归档创建完毕' : '.ozip binary archive ready'} (${(archiveBytes.length / 1024).toFixed(1)} KB)`;
+    zipEncodeStatus.innerText = `${currentLang === 'ko' ? '.octazip 변환 및 다운로드 완료' : currentLang === 'zh' ? '.octazip 转换并已直接下载' : '.octazip created and downloaded'} (${(packageBytes.length / 1024).toFixed(1)} KB)`;
   } catch (err: any) {
     zipEncodeStatus.innerText = `Error: ${err?.message || err}`;
   }
@@ -400,19 +410,19 @@ zipEncodeBtn.addEventListener('click', async () => {
 
 zipDecodeBtn.addEventListener('click', async () => {
   if (!zipDecodeFileInput.files || !zipDecodeFileInput.files[0]) {
-    alert(currentLang === 'ko' ? '해제할 .ozip 파일을 선택해주세요.' : currentLang === 'zh' ? '请选择要解包的 .ozip 文件。' : 'Please select an .ozip file to extract.');
+    alert(currentLang === 'ko' ? '복구할 .octazip 파일을 선택해주세요.' : currentLang === 'zh' ? '请选择要还原的 .octazip 文件。' : 'Please select an .octazip file to restore.');
     return;
   }
 
   const file = zipDecodeFileInput.files[0];
   const buf = await file.arrayBuffer();
-  const archiveBytes = new Uint8Array(buf);
+  const packageBytes = new Uint8Array(buf);
   const pass = zipDecPassphrase.value.trim();
   const codec = renderer.getCodec();
 
   try {
-    zipDecodeStatus.innerText = 'Extracting .ozip archive...';
-    const recovered = codec.decode_octazip(archiveBytes, pass);
+    zipDecodeStatus.innerText = 'Unpacking .octazip archive via WASM...';
+    const recovered = codec.unpack_octazip(packageBytes, pass);
     lastZipDecodedBytes = recovered;
 
     try {
@@ -421,7 +431,7 @@ zipDecodeBtn.addEventListener('click', async () => {
       zipDecodeOutput.value = `[Binary Data Recovered (${recovered.length} bytes)]`;
     }
 
-    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '압축 해제 성공' : currentLang === 'zh' ? '解包成功' : 'Extracted successfully'} (${(recovered.length / 1024).toFixed(1)} KB)`;
+    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '.octazip 복구 성공' : currentLang === 'zh' ? '.octazip 还原成功' : '.octazip restored successfully'} (${(recovered.length / 1024).toFixed(1)} KB)`;
     zipDownloadDecodedBtn.style.display = 'inline-flex';
   } catch (err: any) {
     zipDecodeStatus.innerText = `Error: ${err?.message || err}`;
@@ -443,11 +453,7 @@ zipDownloadDecodedBtn.addEventListener('click', () => {
   if (!lastZipDecodedBytes) return;
   const copy = new Uint8Array(lastZipDecodedBytes);
   const blob = new Blob([copy.buffer as ArrayBuffer]);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'extracted_data.bin';
-  a.click();
+  triggerDownload(blob, 'recovered_data.bin');
 });
 
 bootstrap();

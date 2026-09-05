@@ -19,25 +19,25 @@
             <button id="lang-zh" class="btn-sm">中文</button>
           </div>
         </div>
-        <p class="subtitle" data-i18n="subtitle">60-Cell Hexagonal Grid Optical Codec & Standalone Binary Archive Tool</p>
+        <p class="subtitle" data-i18n="subtitle">Hexagonal Grid Optical Media (.png/.webm) & Binary Package Archiver (.octazip)</p>
         <div class="security-badge" data-i18n="badge">
-          🛡️ Air-Gapped / Zero-Telemetry: All cryptographic, compression, and decoding operations run strictly inside browser WebAssembly sandbox.
+          🛡️ Air-Gapped / Zero-Telemetry: All encoding and decoding operations run strictly inside local WebAssembly sandbox.
         </div>
       </header>
 
       <!-- Navigation Tabs -->
       <nav class="nav-tabs">
-        <button id="tab-btn-octavis" class="tab-btn active" data-i18n="tab_octavis">OctaVis (Optical Image/Video)</button>
-        <button id="tab-btn-octazip" class="tab-btn" data-i18n="tab_octazip">OctaZip (Binary Archive .ozip)</button>
+        <button id="tab-btn-octavis" class="tab-btn active" data-i18n="tab_octavis">OctaVis (Optical .png / .webm)</button>
+        <button id="tab-btn-octazip" class="tab-btn" data-i18n="tab_octazip">OctaZip (Binary .octazip)</button>
       </nav>
 
       <!-- TAB 1: OctaVis Optical Media -->
       <main id="tab-octavis" class="container tab-content active">
         <!-- Encoder Section -->
         <section class="panel">
-          <h2 data-i18n="enc_title">Encoder</h2>
+          <h2 data-i18n="enc_title">OctaVis Encoder</h2>
           <div class="control-group">
-            <label for="file-input" data-i18n="enc_file_label">Select File to Transmit</label>
+            <label for="file-input" data-i18n="enc_file_label">Input File to Encode</label>
             <input type="file" id="file-input" />
           </div>
           <div class="control-group">
@@ -46,7 +46,7 @@
           </div>
           <div class="control-group">
             <label for="enc-passphrase" data-i18n="enc_pass_label">Secret Passphrase (ChaCha20 Encryption & Chameleon Preamble)</label>
-            <input type="password" id="enc-passphrase" data-i18n-placeholder="enc_pass_placeholder" placeholder="Leave blank for plaintext, or enter to enable ChaCha20-Poly1305 & polymorphic preamble" />
+            <input type="password" id="enc-passphrase" data-i18n-placeholder="enc_pass_placeholder" placeholder="Leave blank for plaintext, or enter to encrypt & randomize preamble" />
           </div>
           <div class="control-group row">
             <label>
@@ -59,32 +59,29 @@
               <input type="checkbox" id="camouflage-mode" /> <span data-i18n="enc_camouflage">Camouflage Graphic Mode (Game/Radar UI Style)</span>
             </label>
           </div>
-          <button id="encode-btn" class="btn primary" data-i18n="btn_encode">Generate Encode</button>
+          <button id="encode-btn" class="btn primary" data-i18n="btn_encode">Encode & Download</button>
 
           <div id="encode-status" class="status-box"></div>
           <div class="preview-box">
             <canvas id="encode-canvas"></canvas>
             <video id="encode-video" controls style="display: none;"></video>
           </div>
-          <div class="action-row">
-            <a id="download-btn" class="btn secondary" style="display: none;">Download</a>
-          </div>
         </section>
 
         <!-- Decoder Section -->
         <section class="panel">
-          <h2 data-i18n="dec_title">Decoder</h2>
+          <h2 data-i18n="dec_title">OctaVis Decoder</h2>
           <div class="control-group">
-            <label><strong data-i18n="dec_method1_label">Method 1: Direct Image / Video File Upload</strong></label>
-            <p class="hint" data-i18n="dec_method1_hint">Drop .png, .webp, or .webm video files directly without camera capture.</p>
+            <label><strong data-i18n="dec_method1_label">Upload Optical Media File (.png / .webm)</strong></label>
+            <p class="hint" data-i18n="dec_method1_hint">Upload your .png image or .webm video stream to decode instantly via WASM.</p>
             <input type="file" id="decode-file-input" accept="image/*,video/webm" />
           </div>
 
           <div class="divider" data-i18n="dec_divider">OR</div>
 
           <div class="control-group">
-            <label><strong data-i18n="dec_method2_label">Method 2: Real-time Camera Scanner</strong></label>
-            <button id="cam-toggle-btn" class="btn secondary" data-i18n="btn_cam_toggle">Start / Stop Webcam Scanner</button>
+            <label><strong data-i18n="dec_method2_label">Real-time Camera Scanner</strong></label>
+            <button id="cam-toggle-btn" class="btn secondary" data-i18n="btn_cam_toggle">Start / Stop Camera Scanner</button>
           </div>
 
           <div class="preview-box">
@@ -99,8 +96,8 @@
 
           <div id="decode-status" class="status-box"></div>
           <div class="control-group">
-            <label data-i18n="dec_recovered_label">Recovered Payload (In-Memory Only)</label>
-            <textarea id="decode-output" rows="6" readonly placeholder="Decoded results appear here."></textarea>
+            <label data-i18n="dec_recovered_label">Decoded Payload Result</label>
+            <textarea id="decode-output" rows="5" readonly placeholder="Decoded results appear here."></textarea>
           </div>
           <div class="action-row">
             <button id="download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">Download Recovered File</button>
@@ -109,49 +106,47 @@
         </section>
       </main>
 
-      <!-- TAB 2: OctaZip Binary Archiver -->
+      <!-- TAB 2: OctaZip Binary Archiver (.octazip) -->
       <main id="tab-octazip" class="container tab-content" style="display: none;">
         <!-- OctaZip Encoder -->
         <section class="panel">
-          <h2 data-i18n="zip_enc_title">OctaZip Binary Archiver (.ozip)</h2>
-          <p class="hint" data-i18n="zip_enc_hint">No text bloat, handles large files: Brotli + ChaCha20-Poly1305 + CRC-16</p>
+          <h2 data-i18n="zip_enc_title">OctaZip Package Encoder</h2>
+          <p class="hint" data-i18n="zip_enc_hint">Directly converts any input file/text into a compact .octazip archive with ChaCha20 encryption and Brotli compression.</p>
           <div class="control-group">
-            <label for="zip-file-input" data-i18n="enc_file_label">Select File to Transmit</label>
+            <label for="zip-file-input" data-i18n="enc_file_label">Input File to Encode</label>
             <input type="file" id="zip-file-input" />
           </div>
           <div class="control-group">
             <label for="zip-text-input" data-i18n="enc_text_label">Or Enter Text Directly</label>
-            <textarea id="zip-text-input" rows="4" placeholder="Enter text to archive..."></textarea>
+            <textarea id="zip-text-input" rows="4" placeholder="Enter text to pack into .octazip..."></textarea>
           </div>
           <div class="control-group">
             <label for="zip-enc-passphrase" data-i18n="enc_pass_label">Secret Passphrase</label>
             <input type="password" id="zip-enc-passphrase" placeholder="Leave blank for plaintext, or enter to encrypt" />
           </div>
-          <button id="zip-encode-btn" class="btn primary" data-i18n="zip_btn_encode">Pack into .ozip Archive</button>
+          <button id="zip-encode-btn" class="btn primary" data-i18n="zip_btn_encode">Convert to .octazip & Download</button>
 
           <div id="zip-encode-status" class="status-box"></div>
-          <div class="action-row">
-            <a id="zip-download-btn" class="btn secondary" style="display: none;" data-i18n="zip_btn_download">Download .ozip Archive</a>
-          </div>
         </section>
 
         <!-- OctaZip Decoder -->
         <section class="panel">
-          <h2 data-i18n="zip_dec_title">OctaZip Binary Extractor</h2>
+          <h2 data-i18n="zip_dec_title">OctaZip Package Decoder</h2>
           <div class="control-group">
-            <label for="zip-decode-file-input" data-i18n="zip_dec_label">Select .ozip Archive File to Extract</label>
-            <input type="file" id="zip-decode-file-input" accept=".ozip,application/octet-stream" />
+            <label for="zip-decode-file-input" data-i18n="zip_dec_label">Upload .octazip File to Restore</label>
+            <p class="hint" data-i18n="zip_dec_hint">Upload your .octazip archive to unpack and recover the original file via WASM.</p>
+            <input type="file" id="zip-decode-file-input" accept=".octazip,application/octet-stream" />
           </div>
           <div class="control-group">
             <label for="zip-dec-passphrase" data-i18n="dec_pass_label">Decryption Passphrase</label>
             <input type="password" id="zip-dec-passphrase" placeholder="Required if payload was encrypted" />
           </div>
-          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Extract .ozip (WASM)</button>
+          <button id="zip-decode-btn" class="btn primary" data-i18n="zip_btn_decode">Decode .octazip & Restore</button>
 
           <div id="zip-decode-status" class="status-box"></div>
           <div class="control-group">
-            <label data-i18n="dec_recovered_label">Recovered Payload (In-Memory Only)</label>
-            <textarea id="zip-decode-output" rows="6" readonly placeholder="Decoded results appear here."></textarea>
+            <label data-i18n="dec_recovered_label">Decoded Payload Result</label>
+            <textarea id="zip-decode-output" rows="6" readonly placeholder="Recovered content will appear here."></textarea>
           </div>
           <div class="action-row">
             <button id="zip-download-decoded-btn" class="btn primary" style="display: none;" data-i18n="btn_download_file">Download Recovered File</button>
