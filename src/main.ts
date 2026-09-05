@@ -280,3 +280,17 @@ downloadDecodedBtn.addEventListener('click', () => {
 });
 
 bootstrap();
+
+// Memory Wipe Handler
+const clearMemBtn = document.getElementById('clear-mem-btn') as HTMLButtonElement;
+if (clearMemBtn) {
+  clearMemBtn.addEventListener('click', () => {
+    if (lastDecodedBytes) {
+      lastDecodedBytes.fill(0); // Zero out buffer in memory
+      lastDecodedBytes = null;
+    }
+    decodeOutput.value = '';
+    decodeStatus.innerText = '메모리 버퍼가 안전하게 파기되었습니다 (Zeroized).';
+    downloadDecodedBtn.style.display = 'none';
+  });
+}

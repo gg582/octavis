@@ -3,14 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OctaVis - Optical Data Codec</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self';" />
+    <meta name="referrer" content="no-referrer" />
+    <title>OctaVis - Optical Data Codec (Air-Gapped & Zero-Telemetry)</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div id="app">
       <header>
         <h1>OctaVis (v1.0)</h1>
-        <p class="subtitle">60셀 육각 격자 (10,621칸) · 8색(3비트) 광학 전송 규격 (ChaCha20-Poly1305 암호화 탑재)</p>
+        <p class="subtitle">60셀 육각 격자 (10,621칸) · 8색(3비트) 광학 전송 규격 (Wasm 로컬 완전 격리 해독)</p>
+        <div class="security-badge">
+          🛡️ <strong>Air-Gapped / Zero-Telemetry:</strong> 모든 연산, 키 파생, 복호화는 브라우저 내부 WebAssembly 샌드박스에서만 수행되며 네트워크 전송이 물리적으로 차단됩니다.
+        </div>
       </header>
 
       <main class="container">
@@ -78,11 +83,12 @@
 
           <div id="decode-status" class="status-box"></div>
           <div class="control-group">
-            <label>복원된 데이터</label>
+            <label>복원된 데이터 (오프라인 메모리 내 유지)</label>
             <textarea id="decode-output" rows="6" readonly placeholder="디코딩 결과가 여기에 표시됩니다."></textarea>
           </div>
           <div class="action-row">
             <button id="download-decoded-btn" class="btn primary" style="display: none;">복원 파일 다운로드</button>
+            <button id="clear-mem-btn" class="btn secondary">메모리 즉시 파기 (Wipe)</button>
           </div>
         </section>
       </main>
