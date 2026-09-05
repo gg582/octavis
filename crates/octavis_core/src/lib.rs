@@ -247,6 +247,60 @@ impl OctaVisCodec {
             payload,
         })
     }
+
+    pub fn decode_rgba_frame_native(
+        &self,
+        rgba: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<DecodedFrameMeta, String> {
+        let palette = [
+            color::ColorState::Black.reference_rgb(),
+            color::ColorState::Blue.reference_rgb(),
+            color::ColorState::Green.reference_rgb(),
+            color::ColorState::Cyan.reference_rgb(),
+            color::ColorState::Red.reference_rgb(),
+            color::ColorState::Magenta.reference_rgb(),
+            color::ColorState::Yellow.reference_rgb(),
+            color::ColorState::White.reference_rgb(),
+        ];
+
+        // 1. Detect grid bounding quad or use centered fallback
+        let corners = match cv::detect_grid_corners(rgba, width, height) {
+            Some(quad) => quad,
+            None => {
+                // Centered fallback matching hexagon aspect ratio 204.38 : 177.0
+                let w = width as f64;
+                let h = height as f64;
+                let cx = w / 2.0;
+                let cy = h / 2.0;
+                let aspect = 102.19099764656376 / 88.5; // ~1.1547
+                let avail_w = w * 0.9;
+                let avail_h = h * 0.9;
+                let (box_w, box_h) = if avail_w / avail_h > aspect {
+                    (avail_h * aspect, avail_h)
+                } else {
+                    (avail_w, avail_w / aspect)
+                };
+                let min_x = cx - box_w / 2.0;
+                let max_x = cx + box_w / 2.0;
+                let min_y = cy - box_h / 2.0;
+                let max_y = cy + box_h / 2.0;
+                [
+                    cv::Point2D::new(min_x, min_y),
+                    cv::Point2D::new(max_x, min_y),
+                    cv::Point2D::new(max_x, max_y),
+                    cv::Point2D::new(min_x, max_y),
+                ]
+            }
+        };
+
+        // 2. Sample 10,621 cell colors via homography
+        let cell_colors = cv::sample_warped_grid(rgba, width, height, &corners, &palette);
+
+        // 3. Decode frame metadata & payload
+        self.decode_frame_meta_native(&cell_colors)
+    }
 }
 
 #[wasm_bindgen]
@@ -342,6 +396,26 @@ impl OctaVisCodec {
         out.extend_from_slice(&name_bytes[..name_len as usize]);
         out.extend_from_slice(&data);
         js_sys::Uint8Array::from(&out[..])
+    }
+
+
+    /// Decodes an image frame directly from RGBA pixel buffer using perspective warp
+    pub fn decode_rgba_frame(
+        &self,
+        rgba: &[u8],
+        width: u32,
+        height: u32,
+    ) -> Result<js_sys::Uint8Array, JsValue> {
+        let meta = self
+            .decode_rgba_frame_native(rgba, width, height)
+            .map_err(|e| JsValue::from_str(&e))?;
+
+        let mut result = Vec::with_capacity(meta.payload.len() + 5);
+        result.push(if meta.is_brotli { 1 } else { 0 });
+        result.extend_from_slice(&meta.frame_idx.to_be_bytes());
+        result.extend_from_slice(&meta.total_frames.to_be_bytes());
+        result.extend_from_slice(&meta.payload);
+        Ok(js_sys::Uint8Array::from(&result[..]))
     }
 
     pub fn get_all_coords(&self) -> js_sys::Int32Array {

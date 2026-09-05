@@ -17,7 +17,7 @@ export class OctaVisVideoDecoder {
 
   async decodeWebMFile(
     file: File,
-    expectedPreambleRgb?: Uint8Array,
+    _expectedPreambleRgb?: Uint8Array,
     onProgress?: (info: VideoDecodeProgress) => void
   ): Promise<{ isBrotli: boolean; payload: Uint8Array }> {
     const video = document.createElement('video');
@@ -36,32 +36,21 @@ export class OctaVisVideoDecoder {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) throw new Error('Cannot create 2d canvas context');
 
-    const duration = video.duration;
+    const duration = video.duration || 10.0;
 
-    if (onProgress) onProgress({ currentFrame: 0, collectedFrames: 0, status: '가변 카멜레온 프리앰블 경계 탐색 중...' });
+    if (onProgress) onProgress({ currentFrame: 0, collectedFrames: 0, status: 'Scanning video stream frames...' });
 
-    const preambleEndTime = await this.detectPreambleEnd(video, canvas, ctx, duration, expectedPreambleRgb);
-
-    const sampleStep = 1 / 60; // 60Hz 고밀도 오버샘플링
-    let currentTime = Math.max(0, preambleEndTime - 0.2);
-
+    // Try fast playback capture first
     const frameMap = new Map<number, Uint8Array>();
     let totalFramesExpected = 0;
     let isBrotli = false;
     const frameTimestamps = new Map<number, number>();
 
-    while (currentTime <= duration) {
-      video.currentTime = currentTime;
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
-      });
-
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // 종료 마커
-      const centerData = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
-      if (centerData[1] > 180 && centerData[0] < 80 && centerData[2] < 80) {
-        break;
+    const processCanvasFrame = (currentTime: number): boolean => {
+      // Check green end marker (#00FF00)
+      const centerPixel = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+      if (centerPixel[1] > 200 && centerPixel[0] < 50 && centerPixel[2] < 50) {
+        return true; // End marker detected
       }
 
       const decoded: DecodedFrameResult | null = this.decoder.decodeFrameDirect(canvas);
@@ -90,21 +79,90 @@ export class OctaVisVideoDecoder {
           totalFrames: totalFramesExpected || undefined,
           collectedFrames: frameMap.size,
           detectedFps: estimatedFps,
-          status: `데이터 프레임 수집 중 (${frameMap.size}/${totalFramesExpected || '?'}) [실질 FPS: ${estimatedFps || '계산 중'}fps]...`,
+          status: `Collecting data frames (${frameMap.size}/${totalFramesExpected || '?'}) [${estimatedFps ? `${estimatedFps} fps` : 'evaluating'}]...`,
         });
       }
 
       if (totalFramesExpected > 0 && frameMap.size >= totalFramesExpected) {
-        break;
+        return true; // Finished!
       }
+      return false;
+    };
 
-      currentTime += sampleStep;
+    // Fast playback capture loop
+    let playbackSucceeded = false;
+    try {
+      video.playbackRate = 1.0;
+      await video.play();
+
+      await new Promise<void>((resolve) => {
+        const checkFrame = () => {
+          if (video.ended || video.paused) {
+            resolve();
+            return;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const done = processCanvasFrame(video.currentTime);
+          if (done) {
+            video.pause();
+            resolve();
+            return;
+          }
+
+          if ('requestVideoFrameCallback' in video) {
+            (video as any).requestVideoFrameCallback(checkFrame);
+          } else {
+            requestAnimationFrame(checkFrame);
+          }
+        };
+
+        if ('requestVideoFrameCallback' in video) {
+          (video as any).requestVideoFrameCallback(checkFrame);
+        } else {
+          requestAnimationFrame(checkFrame);
+        }
+
+        video.onended = () => resolve();
+      });
+
+      if (totalFramesExpected > 0 && frameMap.size >= totalFramesExpected) {
+        playbackSucceeded = true;
+      }
+    } catch {
+      playbackSucceeded = false;
+    }
+
+    // Step sampling fallback if playback missed any frames
+    if (!playbackSucceeded || (totalFramesExpected > 0 && frameMap.size < totalFramesExpected) || frameMap.size === 0) {
+      if (onProgress) onProgress({ currentFrame: frameMap.size, collectedFrames: frameMap.size, status: 'Performing deep seek frame sampling...' });
+
+      const sampleStep = 0.05; // 50ms step sampling
+      let currentTime = 0.0;
+
+      while (currentTime <= duration) {
+        video.currentTime = currentTime;
+        await new Promise<void>((resolve) => {
+          const onSeeked = () => {
+            video.removeEventListener('seeked', onSeeked);
+            resolve();
+          };
+          video.addEventListener('seeked', onSeeked);
+          // Safety timeout in case seeked doesn't fire
+          setTimeout(onSeeked, 80);
+        });
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const done = processCanvasFrame(currentTime);
+        if (done) break;
+
+        currentTime += sampleStep;
+      }
     }
 
     URL.revokeObjectURL(video.src);
 
     if (frameMap.size === 0) {
-      throw new Error('유효한 OctaVis 데이터 프레임을 찾을 수 없습니다.');
+      throw new Error('No valid OctaVis data frames found in video stream.');
     }
 
     const sortedIndices = Array.from(frameMap.keys()).sort((a, b) => a - b);
@@ -131,45 +189,5 @@ export class OctaVisVideoDecoder {
     }
 
     return { isBrotli, payload: finalPayload };
-  }
-
-  private async detectPreambleEnd(
-    video: HTMLVideoElement,
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D,
-    duration: number,
-    expectedRgb?: Uint8Array
-  ): Promise<number> {
-    const targetR = expectedRgb ? expectedRgb[0] : 255;
-    const targetG = expectedRgb ? expectedRgb[1] : 0;
-    const targetB = expectedRgb ? expectedRgb[2] : 255;
-
-    const checkPreambleAt = async (t: number): Promise<boolean> => {
-      video.currentTime = Math.min(t, duration);
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
-      });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const pixel = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
-      
-      const dr = pixel[0] - targetR;
-      const dg = pixel[1] - targetG;
-      const db = pixel[2] - targetB;
-      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-      return dist < 90; // 일치 오차 허용
-    };
-
-    if (!(await checkPreambleAt(1.0))) {
-      return 0.0;
-    }
-
-    for (let t = 3.0; t <= Math.min(duration, 7.0); t += 0.1) {
-      const isPreamble = await checkPreambleAt(t);
-      if (!isPreamble) {
-        return t;
-      }
-    }
-
-    return 5.0;
   }
 }

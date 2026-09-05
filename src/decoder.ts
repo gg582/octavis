@@ -27,14 +27,31 @@ export class OctaVisDecoder {
     const width = canvas.width;
     const height = canvas.height;
     const imgData = ctx.getImageData(0, 0, width, height);
-    const data = imgData.data;
 
+    // 1. Try perspective homography via WASM
+    try {
+      const decoded = this.codec.decode_rgba_frame(new Uint8Array(imgData.data.buffer), width, height);
+      if (decoded && decoded.length >= 5) {
+        const isBrotli = decoded[0] === 1;
+        const frameIdx = (decoded[1] << 8) | decoded[2];
+        const totalFrames = (decoded[3] << 8) | decoded[4];
+        const payload = new Uint8Array(decoded.slice(5));
+        return { isBrotli, frameIdx, totalFrames, payload };
+      }
+    } catch {
+      // Fallback to centered sampling
+    }
+
+    // 2. Centered grid fallback
+    const data = imgData.data;
     const cx = width / 2;
     const cy = height / 2;
     const totalCells = this.coords.length / 2;
     const cellColors = new Uint8Array(totalCells);
 
-    const r_radius = width / (2 * 64 * Math.sqrt(3));
+    // Renderer uses: size = 2 * (60 * r * sqrt(3) + quietZoneCells * r * sqrt(3))
+    // For default 4 quietZoneCells: size = 2 * 64 * sqrt(3) * r => r = size / (128 * sqrt(3))
+    const r_radius = width / (128 * Math.sqrt(3));
     const sqrt3 = Math.sqrt(3);
 
     const referenceColors: [number, number, number][] = [

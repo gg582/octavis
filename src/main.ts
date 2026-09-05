@@ -332,6 +332,10 @@ function stopCamera() {
 
 function startCameraLoop() {
   const ctx = camCanvas.getContext('2d', { willReadFrequently: true });
+  const cameraFrameMap = new Map<number, Uint8Array>();
+  let cameraTotalFrames = 0;
+  let cameraIsBrotli = false;
+
   const scan = () => {
     if (!cameraStream) return;
     if (camVideo.videoWidth > 0 && ctx) {
@@ -341,15 +345,55 @@ function startCameraLoop() {
 
       const res = decoder.decodeFrameDirect(camCanvas);
       if (res && res.payload.length > 0) {
-        let payload = res.payload;
-        if (res.isBrotli) {
-          try {
-            payload = new Uint8Array(decoder.getCodec().decompress_brotli(payload));
-          } catch {}
+        cameraIsBrotli = res.isBrotli;
+        cameraTotalFrames = res.totalFrames;
+
+        if (!cameraFrameMap.has(res.frameIdx)) {
+          cameraFrameMap.set(res.frameIdx, res.payload);
         }
-        stopCamera();
-        handleDecodedPayload(payload, res.isBrotli, 'camera_scan');
-        return;
+
+        if (cameraTotalFrames <= 1) {
+          // Single frame static image or 1-frame video
+          let payload = res.payload;
+          if (res.isBrotli) {
+            try {
+              payload = new Uint8Array(decoder.getCodec().decompress_brotli(payload));
+            } catch {}
+          }
+          stopCamera();
+          handleDecodedPayload(payload, res.isBrotli, 'camera_scan');
+          return;
+        } else {
+          // Multi-frame video stream scanning
+          decodeStatus.innerText = `Camera stream scan: collected ${cameraFrameMap.size} / ${cameraTotalFrames} frames...`;
+
+          if (cameraFrameMap.size >= cameraTotalFrames) {
+            const sortedIndices = Array.from(cameraFrameMap.keys()).sort((a, b) => a - b);
+            let totalLen = 0;
+            for (const idx of sortedIndices) {
+              totalLen += cameraFrameMap.get(idx)!.length;
+            }
+
+            const merged = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const idx of sortedIndices) {
+              const chunk = cameraFrameMap.get(idx)!;
+              merged.set(chunk, offset);
+              offset += chunk.length;
+            }
+
+            let finalPayload = merged;
+            if (cameraIsBrotli) {
+              try {
+                finalPayload = new Uint8Array(decoder.getCodec().decompress_brotli(merged));
+              } catch {}
+            }
+
+            stopCamera();
+            handleDecodedPayload(finalPayload, cameraIsBrotli, 'camera_stream');
+            return;
+          }
+        }
       }
     }
     cameraScanTimer = requestAnimationFrame(scan);

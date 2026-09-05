@@ -51,6 +51,7 @@ export class OctaVisVideoEncoder {
 
       // 2. Data frames (Camouflage background optional)
       const total = dataFrames.length;
+      const holdFrames = 3; // Hold each data frame for 3 frames (~125ms at 24fps) to ensure seamless recording & decoding
       for (let i = 0; i < total; i++) {
         if (onProgress) {
           onProgress(0.2 + (0.7 * (i + 1)) / total, `데이터 프레임 송출 중 (${i + 1}/${total})`);
@@ -59,7 +60,9 @@ export class OctaVisVideoEncoder {
           cellSize: 6,
           camouflageMode,
         });
-        await this.waitNextFrame(1000 / fps);
+        for (let h = 0; h < holdFrames; h++) {
+          await this.waitNextFrame(1000 / fps);
+        }
       }
 
       // 3. End Marker (1.0 second): Green (#00FF00)
