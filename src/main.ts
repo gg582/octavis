@@ -144,6 +144,10 @@ encodeBtn.addEventListener('click', async () => {
   const pass = encPassphrase.value.trim();
   const isCamouflage = camouflageModeInput.checked;
 
+  // Pack original filename envelope so restoration recovers the exact filename
+  const fileNameToSave = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'message.txt';
+  binary = codec.pack_file_envelope(fileNameToSave, binary);
+
   if (pass.length > 0) {
     encodeStatus.innerText = currentLang === 'ko' ? 'ChaCha20-Poly1305 암호화 중...' : currentLang === 'zh' ? '正在执行 ChaCha20-Poly1305 加密...' : 'Applying ChaCha20-Poly1305...';
     try {
@@ -153,10 +157,6 @@ encodeBtn.addEventListener('click', async () => {
       return;
     }
   }
-
-  // Pack original filename envelope so restoration recovers the exact filename
-  const fileNameToSave = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : 'message.txt';
-  binary = codec.pack_file_envelope(fileNameToSave, binary);
 
   const mode = (document.querySelector('input[name="mode"]:checked') as HTMLInputElement).value;
   const compResult = codec.compress_if_beneficial(binary);
