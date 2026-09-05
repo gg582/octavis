@@ -4,15 +4,16 @@ import { OctaVisDecoder } from './decoder';
 import { OctaVisVideoDecoder } from './video_decoder';
 import { translations, type Lang } from './i18n';
 
-let currentLang: Lang = 'ko';
+let currentLang: Lang = 'en'; // Default to English
 let renderer: OctaVisRenderer;
 let decoder: OctaVisDecoder;
 let videoEncoder: OctaVisVideoEncoder;
 let videoDecoder: OctaVisVideoDecoder;
 
 // Language Elements
-const langKoBtn = document.getElementById('lang-ko') as HTMLButtonElement;
 const langEnBtn = document.getElementById('lang-en') as HTMLButtonElement;
+const langKoBtn = document.getElementById('lang-ko') as HTMLButtonElement;
+const langZhBtn = document.getElementById('lang-zh') as HTMLButtonElement;
 
 // Tab Elements
 const tabBtnOctavis = document.getElementById('tab-btn-octavis') as HTMLButtonElement;
@@ -66,8 +67,9 @@ let cameraScanTimer: number | null = null;
 // Apply i18n
 function applyLanguage(lang: Lang) {
   currentLang = lang;
-  langKoBtn.classList.toggle('active', lang === 'ko');
   langEnBtn.classList.toggle('active', lang === 'en');
+  langKoBtn.classList.toggle('active', lang === 'ko');
+  langZhBtn.classList.toggle('active', lang === 'zh');
 
   const dict = translations[lang];
   document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -85,8 +87,9 @@ function applyLanguage(lang: Lang) {
   });
 }
 
-langKoBtn.addEventListener('click', () => applyLanguage('ko'));
 langEnBtn.addEventListener('click', () => applyLanguage('en'));
+langKoBtn.addEventListener('click', () => applyLanguage('ko'));
+langZhBtn.addEventListener('click', () => applyLanguage('zh'));
 
 // Tabs switching
 tabBtnOctavis.addEventListener('click', () => {
@@ -110,7 +113,8 @@ async function bootstrap() {
   decoder = new OctaVisDecoder(renderer.getCodec());
   videoEncoder = new OctaVisVideoEncoder(renderer);
   videoDecoder = new OctaVisVideoDecoder(decoder);
-  encodeStatus.innerText = currentLang === 'ko' ? '준비 완료 (WASM 활성화됨)' : 'Ready (WASM Active)';
+  encodeStatus.innerText = 'Ready (WASM Active)';
+  applyLanguage('en');
 }
 
 // -------------------------------------------------------------
@@ -125,7 +129,7 @@ encodeBtn.addEventListener('click', async () => {
   } else if (textInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(textInput.value);
   } else {
-    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : 'Please provide input file or text.');
+    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请提供要编码的文件或文本。' : 'Please provide input file or text.');
     return;
   }
 
@@ -134,7 +138,7 @@ encodeBtn.addEventListener('click', async () => {
   const isCamouflage = camouflageModeInput.checked;
 
   if (pass.length > 0) {
-    encodeStatus.innerText = currentLang === 'ko' ? 'ChaCha20-Poly1305 암호화 중...' : 'Applying ChaCha20-Poly1305...';
+    encodeStatus.innerText = currentLang === 'ko' ? 'ChaCha20-Poly1305 암호화 중...' : currentLang === 'zh' ? '正在执行 ChaCha20-Poly1305 加密...' : 'Applying ChaCha20-Poly1305...';
     try {
       binary = codec.encrypt(binary, pass);
     } catch (e: any) {
@@ -153,7 +157,7 @@ encodeBtn.addEventListener('click', async () => {
     encodeCanvas.style.display = 'block';
 
     if (processedData.length > 2940) {
-      alert(currentLang === 'ko' ? '정적 모드 용량 초과. 비디오 모드를 사용하세요.' : 'Static capacity exceeded. Use video mode.');
+      alert(currentLang === 'ko' ? '정적 모드 용량 초과. 비디오 모드를 사용하세요.' : currentLang === 'zh' ? '超出静态模式容量，请使用视频流模式。' : 'Static capacity exceeded. Use video mode.');
       return;
     }
 
@@ -168,8 +172,8 @@ encodeBtn.addEventListener('click', async () => {
     downloadBtn.href = dataUrl;
     downloadBtn.download = 'octavis_frame.png';
     downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = currentLang === 'ko' ? 'PNG 이미지 다운로드' : 'Download PNG Image';
-    encodeStatus.innerText = `${currentLang === 'ko' ? '정적 프레임 생성 완료' : 'Static frame created'} (${frameCells.length} cells)`;
+    downloadBtn.innerText = currentLang === 'ko' ? 'PNG 이미지 다운로드' : currentLang === 'zh' ? '下载 PNG 图片' : 'Download PNG Image';
+    encodeStatus.innerText = `${currentLang === 'ko' ? '정적 프레임 생성 완료' : currentLang === 'zh' ? '静态帧生成完毕' : 'Static frame created'} (${frameCells.length} cells)`;
   } else {
     encodeCanvas.style.display = 'none';
     encodeVideo.style.display = 'block';
@@ -185,7 +189,7 @@ encodeBtn.addEventListener('click', async () => {
     }
 
     const preambleRgb = codec.get_preamble_rgb(pass);
-    encodeStatus.innerText = currentLang === 'ko' ? '비디오 스트림 생성 중...' : 'Rendering video stream...';
+    encodeStatus.innerText = currentLang === 'ko' ? '비디오 스트림 생성 중...' : currentLang === 'zh' ? '正在渲染视频流...' : 'Rendering video stream...';
 
     const webmBlob = await videoEncoder.createWebMStream(
       frames,
@@ -202,8 +206,8 @@ encodeBtn.addEventListener('click', async () => {
     downloadBtn.href = url;
     downloadBtn.download = 'octavis_stream.webm';
     downloadBtn.style.display = 'inline-block';
-    downloadBtn.innerText = currentLang === 'ko' ? 'WebM 비디오 다운로드' : 'Download WebM Video';
-    encodeStatus.innerText = `${currentLang === 'ko' ? 'WebM 비디오 생성 완료' : 'WebM video ready'} (${(webmBlob.size / 1024).toFixed(1)} KB)`;
+    downloadBtn.innerText = currentLang === 'ko' ? 'WebM 비디오 다운로드' : currentLang === 'zh' ? '下载 WebM 视频' : 'Download WebM Video';
+    encodeStatus.innerText = `${currentLang === 'ko' ? 'WebM 비디오 생성 완료' : currentLang === 'zh' ? 'WebM 视频生成完毕' : 'WebM video ready'} (${(webmBlob.size / 1024).toFixed(1)} KB)`;
   }
 });
 
@@ -218,7 +222,7 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
     try {
       finalPayload = renderer.getCodec().decrypt(rawPayload, pass);
     } catch {
-      decodeStatus.innerText = currentLang === 'ko' ? '복호화 실패: 비밀번호를 확인하세요.' : 'Decryption failed: check passphrase.';
+      decodeStatus.innerText = currentLang === 'ko' ? '복호화 실패: 비밀번호를 확인하세요.' : currentLang === 'zh' ? '解密失败：请核对密码。' : 'Decryption failed: check passphrase.';
       decodeOutput.value = `[Encrypted Ciphertext (${rawPayload.length} bytes)]`;
       lastDecodedBytes = rawPayload;
       return;
@@ -232,7 +236,7 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
   } catch {
     decodeOutput.value = `[Binary Data Recovered (${finalPayload.length} bytes)]`;
   }
-  decodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : 'Decoded successfully'} (${finalPayload.length} B, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
+  decodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : currentLang === 'zh' ? '解码成功' : 'Decoded successfully'} (${finalPayload.length} B, Brotli: ${isBrotli ? 'Yes' : 'No'})`;
   downloadDecodedBtn.style.display = 'inline-block';
 }
 
@@ -345,7 +349,7 @@ clearMemBtn.addEventListener('click', () => {
     lastDecodedBytes = null;
   }
   decodeOutput.value = '';
-  decodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : 'Memory zeroized.';
+  decodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : currentLang === 'zh' ? '内存已安全粉碎。' : 'Memory zeroized.';
   downloadDecodedBtn.style.display = 'none';
 });
 
@@ -372,7 +376,7 @@ zipEncodeBtn.addEventListener('click', async () => {
   } else if (zipTextInput.value.trim().length > 0) {
     binary = new TextEncoder().encode(zipTextInput.value);
   } else {
-    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : 'Please provide input file or text.');
+    alert(currentLang === 'ko' ? '인코딩할 파일 또는 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请提供要编码的文件或文本。' : 'Please provide input file or text.');
     return;
   }
 
@@ -384,7 +388,7 @@ zipEncodeBtn.addEventListener('click', async () => {
     const armor = codec.encode_octazip_text(binary, pass);
     zipOutputText.value = armor;
     zipCopyBtn.style.display = 'inline-block';
-    zipEncodeStatus.innerText = `${currentLang === 'ko' ? 'OctaZip 아머 생성 완료' : 'OctaZip armor generated'} (${armor.length} chars)`;
+    zipEncodeStatus.innerText = `${currentLang === 'ko' ? 'OctaZip 아머 생성 완료' : currentLang === 'zh' ? 'OctaZip 装甲生成完毕' : 'OctaZip armor generated'} (${armor.length} chars)`;
   } catch (err: any) {
     zipEncodeStatus.innerText = `Error: ${err?.message || err}`;
   }
@@ -393,16 +397,16 @@ zipEncodeBtn.addEventListener('click', async () => {
 zipCopyBtn.addEventListener('click', async () => {
   if (!zipOutputText.value) return;
   await navigator.clipboard.writeText(zipOutputText.value);
-  zipCopyBtn.innerText = currentLang === 'ko' ? '복사 완료!' : 'Copied!';
+  zipCopyBtn.innerText = currentLang === 'ko' ? '복사 완료!' : currentLang === 'zh' ? '已复制！' : 'Copied!';
   setTimeout(() => {
-    zipCopyBtn.innerText = currentLang === 'ko' ? '클립보드에 복사' : 'Copy to Clipboard';
+    zipCopyBtn.innerText = currentLang === 'ko' ? '클립보드에 복사' : currentLang === 'zh' ? '复制到剪贴板' : 'Copy to Clipboard';
   }, 2000);
 });
 
 zipDecodeBtn.addEventListener('click', () => {
   const text = zipDecodeInput.value.trim();
   if (!text) {
-    alert(currentLang === 'ko' ? 'OctaZip 아머 텍스트를 입력해주세요.' : 'Please paste OctaZip armor text.');
+    alert(currentLang === 'ko' ? 'OctaZip 아머 텍스트를 입력해주세요.' : currentLang === 'zh' ? '请粘贴 OctaZip 装甲文本。' : 'Please paste OctaZip armor text.');
     return;
   }
 
@@ -420,7 +424,7 @@ zipDecodeBtn.addEventListener('click', () => {
       zipDecodeOutput.value = `[Binary Data Recovered (${recovered.length} bytes)]`;
     }
 
-    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : 'Decoded successfully'} (${recovered.length} B)`;
+    zipDecodeStatus.innerText = `${currentLang === 'ko' ? '디코딩 성공' : currentLang === 'zh' ? '解码成功' : 'Decoded successfully'} (${recovered.length} B)`;
     zipDownloadDecodedBtn.style.display = 'inline-block';
   } catch (err: any) {
     zipDecodeStatus.innerText = `Error: ${err?.message || err}`;
@@ -434,7 +438,7 @@ zipClearMemBtn.addEventListener('click', () => {
     lastZipDecodedBytes = null;
   }
   zipDecodeOutput.value = '';
-  zipDecodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : 'Memory zeroized.';
+  zipDecodeStatus.innerText = currentLang === 'ko' ? '메모리가 파기되었습니다.' : currentLang === 'zh' ? '内存已安全粉碎。' : 'Memory zeroized.';
   zipDownloadDecodedBtn.style.display = 'none';
 });
 
