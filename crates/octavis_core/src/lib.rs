@@ -256,6 +256,11 @@ impl OctaVisCodec {
         }
     }
 
+    pub fn get_preamble_rgb(&self, passphrase: &str) -> js_sys::Uint8Array {
+        let rgb = color::derive_preamble_rgb(passphrase);
+        js_sys::Uint8Array::from(&rgb[..])
+    }
+
     pub fn encrypt(&self, payload: &[u8], passphrase: &str) -> Result<js_sys::Uint8Array, JsValue> {
         let encrypted = crypto::encrypt_payload(payload, passphrase).map_err(|e| JsValue::from_str(&e))?;
         Ok(js_sys::Uint8Array::from(&encrypted[..]))

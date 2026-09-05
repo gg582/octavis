@@ -12,6 +12,7 @@ let videoDecoder: OctaVisVideoDecoder;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const textInput = document.getElementById('text-input') as HTMLTextAreaElement;
 const encPassphrase = document.getElementById('enc-passphrase') as HTMLInputElement;
+const camouflageModeInput = document.getElementById('camouflage-mode') as HTMLInputElement;
 const encodeBtn = document.getElementById('encode-btn') as HTMLButtonElement;
 const encodeStatus = document.getElementById('encode-status') as HTMLDivElement;
 const encodeCanvas = document.getElementById('encode-canvas') as HTMLCanvasElement;
@@ -27,6 +28,7 @@ const camCanvas = document.getElementById('cam-canvas') as HTMLCanvasElement;
 const decodeStatus = document.getElementById('decode-status') as HTMLDivElement;
 const decodeOutput = document.getElementById('decode-output') as HTMLTextAreaElement;
 const downloadDecodedBtn = document.getElementById('download-decoded-btn') as HTMLButtonElement;
+const clearMemBtn = document.getElementById('clear-mem-btn') as HTMLButtonElement;
 
 let lastDecodedBytes: Uint8Array | null = null;
 let cameraStream: MediaStream | null = null;
@@ -39,7 +41,7 @@ async function bootstrap() {
   decoder = new OctaVisDecoder(renderer.getCodec());
   videoEncoder = new OctaVisVideoEncoder(renderer);
   videoDecoder = new OctaVisVideoDecoder(decoder);
-  encodeStatus.innerText = '준비 완료 (ChaCha20-Poly1305 및 WASM 활성화됨)';
+  encodeStatus.innerText = '준비 완료 (카멜레온 가변 프리앰블 및 위장 모드 활성화됨)';
 }
 
 // ---------------------------
@@ -60,6 +62,7 @@ encodeBtn.addEventListener('click', async () => {
 
   const codec = renderer.getCodec();
   const pass = encPassphrase.value.trim();
+  const isCamouflage = camouflageModeInput.checked;
 
   // 1. Optional ChaCha20-Poly1305 Encryption
   if (pass.length > 0) {
@@ -92,14 +95,18 @@ encodeBtn.addEventListener('click', async () => {
     }
 
     const frameCells = codec.encode_frame(processedData, 0, 1, isBrotli);
-    renderer.renderToCanvas(encodeCanvas, frameCells, { cellSize: 5, quietZoneCells: 4 });
+    renderer.renderToCanvas(encodeCanvas, frameCells, {
+      cellSize: 5,
+      quietZoneCells: 4,
+      camouflageMode: isCamouflage,
+    });
 
     const dataUrl = encodeCanvas.toDataURL('image/png');
     downloadBtn.href = dataUrl;
     downloadBtn.download = 'octavis_frame.png';
     downloadBtn.style.display = 'inline-block';
     downloadBtn.innerText = 'PNG 이미지 다운로드';
-    encodeStatus.innerText = `정적 프레임 인코딩 완료 (${frameCells.length} 셀 렌더링)`;
+    encodeStatus.innerText = `정적 프레임 인코딩 완료 (${frameCells.length} 셀, 위장 모드: ${isCamouflage ? 'ON' : 'OFF'})`;
   } else {
     encodeCanvas.style.display = 'none';
     encodeVideo.style.display = 'block';
@@ -114,10 +121,18 @@ encodeBtn.addEventListener('click', async () => {
       frames.push(cells);
     }
 
-    encodeStatus.innerText = `비디오 스트림 생성 중 (총 ${totalFrames} 프레임)...`;
-    const webmBlob = await videoEncoder.createWebMStream(frames, 24, (progress, status) => {
-      encodeStatus.innerText = `[${Math.round(progress * 100)}%] ${status}`;
-    });
+    const preambleRgb = codec.get_preamble_rgb(pass);
+    encodeStatus.innerText = `카멜레온 비디오 스트림 생성 중 (총 ${totalFrames} 프레임)...`;
+
+    const webmBlob = await videoEncoder.createWebMStream(
+      frames,
+      preambleRgb,
+      isCamouflage,
+      24,
+      (progress, status) => {
+        encodeStatus.innerText = `[${Math.round(progress * 100)}%] ${status}`;
+      }
+    );
 
     const url = URL.createObjectURL(webmBlob);
     encodeVideo.src = url;
@@ -137,7 +152,7 @@ function handleDecodedPayload(rawPayload: Uint8Array, isBrotli: boolean) {
   if (pass.length > 0) {
     try {
       finalPayload = renderer.getCodec().decrypt(rawPayload, pass);
-    } catch (e: any) {
+    } catch {
       decodeStatus.innerText = `복호화 실패: 올바른 패스프레이즈를 입력하세요.`;
       decodeOutput.value = `[암호화된 고밀도 난수 페이로드 (${rawPayload.length} 바이트)]\n복호화 키가 일치하지 않습니다.`;
       lastDecodedBytes = rawPayload;
@@ -168,7 +183,10 @@ decodeFileInput.addEventListener('change', async () => {
   if (file.type.startsWith('video/') || file.name.endsWith('.webm')) {
     try {
       decodeStatus.innerText = 'WebM 비디오 직접 프레임 고속 디코딩 중...';
-      const result = await videoDecoder.decodeWebMFile(file, (info) => {
+      const pass = decPassphrase.value.trim();
+      const expectedPreambleRgb = renderer.getCodec().get_preamble_rgb(pass);
+
+      const result = await videoDecoder.decodeWebMFile(file, expectedPreambleRgb, (info) => {
         decodeStatus.innerText = info.status;
       });
       handleDecodedPayload(result.payload, result.isBrotli);
@@ -266,8 +284,18 @@ function startCameraLoop() {
 }
 
 // ---------------------------
-// EXPORT FILE
+// MEMORY WIPE & EXPORT FILE
 // ---------------------------
+clearMemBtn.addEventListener('click', () => {
+  if (lastDecodedBytes) {
+    lastDecodedBytes.fill(0);
+    lastDecodedBytes = null;
+  }
+  decodeOutput.value = '';
+  decodeStatus.innerText = '메모리 버퍼가 안전하게 파기되었습니다 (Zeroized).';
+  downloadDecodedBtn.style.display = 'none';
+});
+
 downloadDecodedBtn.addEventListener('click', () => {
   if (!lastDecodedBytes) return;
   const copy = new Uint8Array(lastDecodedBytes);
@@ -280,17 +308,3 @@ downloadDecodedBtn.addEventListener('click', () => {
 });
 
 bootstrap();
-
-// Memory Wipe Handler
-const clearMemBtn = document.getElementById('clear-mem-btn') as HTMLButtonElement;
-if (clearMemBtn) {
-  clearMemBtn.addEventListener('click', () => {
-    if (lastDecodedBytes) {
-      lastDecodedBytes.fill(0); // Zero out buffer in memory
-      lastDecodedBytes = null;
-    }
-    decodeOutput.value = '';
-    decodeStatus.innerText = '메모리 버퍼가 안전하게 파기되었습니다 (Zeroized).';
-    downloadDecodedBtn.style.display = 'none';
-  });
-}

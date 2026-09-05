@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self';" />
     <meta name="referrer" content="no-referrer" />
-    <title>OctaVis - Optical Data Codec (Air-Gapped & Zero-Telemetry)</title>
+    <title>OctaVis - Optical Data Codec (Chameleon Camouflage v1.1)</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div id="app">
       <header>
-        <h1>OctaVis (v1.0)</h1>
-        <p class="subtitle">60셀 육각 격자 (10,621칸) · 8색(3비트) 광학 전송 규격 (Wasm 로컬 완전 격리 해독)</p>
+        <h1>OctaVis (v1.1)</h1>
+        <p class="subtitle">60셀 육각 격자 (10,621칸) · 카멜레온 가변 프리앰블 & 위장형 격자 탑재</p>
         <div class="security-badge">
-          🛡️ <strong>Air-Gapped / Zero-Telemetry:</strong> 모든 연산, 키 파생, 복호화는 브라우저 내부 WebAssembly 샌드박스에서만 수행되며 네트워크 전송이 물리적으로 차단됩니다.
+          🛡️ <strong>검열 저항성 극대화:</strong> 패스프레이즈 기반 카멜레온 프리앰블(시그니처 무작위화) + 사이버펑크 레이더 위장 배경 지원
         </div>
       </header>
 
@@ -28,11 +28,11 @@
           </div>
           <div class="control-group">
             <label for="text-input">또는 텍스트 직접 입력</label>
-            <textarea id="text-input" rows="4" placeholder="인코딩할 텍스트 입력..."></textarea>
+            <textarea id="text-input" rows="3" placeholder="인코딩할 텍스트 입력..."></textarea>
           </div>
           <div class="control-group">
-            <label for="enc-passphrase">비밀 키 / 패스프레이즈 (선택 사항: 암호화 전송)</label>
-            <input type="password" id="enc-passphrase" placeholder="비우면 평문 전송, 입력 시 ChaCha20-Poly1305 암호화" />
+            <label for="enc-passphrase">비밀 키 / 패스프레이즈 (암호화 및 카멜레온 프리앰블 시드)</label>
+            <input type="password" id="enc-passphrase" placeholder="비우면 기본 마젠타, 입력 시 프리앰블 색상 가변화 & ChaCha20 암호화" />
           </div>
           <div class="control-group row">
             <label>
@@ -40,6 +40,9 @@
             </label>
             <label>
               <input type="radio" name="mode" value="video" /> 비디오 스트림 (WebM)
+            </label>
+            <label>
+              <input type="checkbox" id="camouflage-mode" /> 위장형 그래픽 모드 (게임/레이더 UI 위장)
             </label>
           </div>
           <button id="encode-btn" class="btn primary">인코드 생성</button>
@@ -77,8 +80,8 @@
           </div>
 
           <div class="control-group">
-            <label for="dec-passphrase">복호화 비밀 키 / 패스프레이즈 (암호화된 경우 입력)</label>
-            <input type="password" id="dec-passphrase" placeholder="암호화된 스트림인 경우 패스프레이즈 입력" />
+            <label for="dec-passphrase">복호화 비밀 키 / 패스프레이즈 (암호화 및 가변 프리앰블 수신 시 필수)</label>
+            <input type="password" id="dec-passphrase" placeholder="인코더에서 설정한 패스프레이즈 입력" />
           </div>
 
           <div id="decode-status" class="status-box"></div>

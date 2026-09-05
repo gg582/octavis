@@ -3,6 +3,7 @@ import init, { OctaVisCodec } from './wasm/octavis_core.js';
 export interface RenderOptions {
   cellSize: number;
   quietZoneCells?: number;
+  camouflageMode?: boolean; // 위장형 미니맵/액자 모드
 }
 
 const HEX_COLOR_STRINGS = [
@@ -34,7 +35,7 @@ export class OctaVisRenderer {
   renderToCanvas(
     canvas: HTMLCanvasElement,
     colorStates: Uint8Array,
-    options: RenderOptions = { cellSize: 6, quietZoneCells: 4 }
+    options: RenderOptions = { cellSize: 6, quietZoneCells: 4, camouflageMode: false }
   ) {
     if (!this.coords) throw new Error('Renderer not initialized');
 
@@ -43,14 +44,29 @@ export class OctaVisRenderer {
 
     const r = options.cellSize;
     const quietZone = (options.quietZoneCells ?? 4) * r * Math.sqrt(3);
-
     const maxRadius = 60 * r * Math.sqrt(3) + quietZone;
     const size = Math.ceil(maxRadius * 2);
     canvas.width = size;
     canvas.height = size;
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, size, size);
+    if (options.camouflageMode) {
+      // 위장 모드: 게임 레이더 / 사이버펑크 미니맵 스타일 그래픽 배경
+      const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.1, size / 2, size / 2, size * 0.5);
+      grad.addColorStop(0, '#111827');
+      grad.addColorStop(1, '#030712');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+
+      // 격자 주변 레이더 그리드 원선 위장
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size * 0.45, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+    }
 
     const cx = size / 2;
     const cy = size / 2;
@@ -83,7 +99,8 @@ export class OctaVisRenderer {
     ctx.fill();
   }
 
-  renderPreamble(canvas: HTMLCanvasElement, options: RenderOptions = { cellSize: 6 }) {
+  // Chameleon Preamble: Passphrase-derived polymorphic colors
+  renderPreamble(canvas: HTMLCanvasElement, preambleRgb: Uint8Array, options: RenderOptions = { cellSize: 6 }) {
     if (!this.coords) throw new Error('Renderer not initialized');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -95,6 +112,7 @@ export class OctaVisRenderer {
     canvas.width = size;
     canvas.height = size;
 
+    // Outer background: Black (#000000)
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, size, size);
 
@@ -102,7 +120,8 @@ export class OctaVisRenderer {
     const cy = size / 2;
     const sqrt3 = Math.sqrt(3);
 
-    ctx.fillStyle = '#FF00FF';
+    const colorStr = `rgb(${preambleRgb[0]}, ${preambleRgb[1]}, ${preambleRgb[2]})`;
+    ctx.fillStyle = colorStr;
     const totalCells = this.coords.length / 2;
     for (let i = 0; i < totalCells; i++) {
       const q = this.coords[i * 2];

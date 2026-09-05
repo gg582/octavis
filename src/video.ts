@@ -9,6 +9,8 @@ export class OctaVisVideoEncoder {
 
   async createWebMStream(
     dataFrames: Uint8Array[],
+    preambleRgb: Uint8Array,
+    camouflageMode = false,
     fps = 24,
     onProgress?: (progress: number, status: string) => void
   ): Promise<Blob> {
@@ -38,27 +40,30 @@ export class OctaVisVideoEncoder {
 
       recorder.start();
 
-      // 1. Preamble (5.0 seconds): Black background, all cells Magenta
-      if (onProgress) onProgress(0.1, 'Rendering 5.0s preamble...');
-      this.renderer.renderPreamble(canvas);
+      // 1. Polymorphic Chameleon Preamble (5.0 seconds)
+      if (onProgress) onProgress(0.1, '카멜레온 프리앰블 렌더링 중...');
+      this.renderer.renderPreamble(canvas, preambleRgb);
 
       const preambleFrames = Math.ceil(5.0 * fps);
       for (let i = 0; i < preambleFrames; i++) {
         await this.waitNextFrame(1000 / fps);
       }
 
-      // 2. Data frames
+      // 2. Data frames (Camouflage background optional)
       const total = dataFrames.length;
       for (let i = 0; i < total; i++) {
         if (onProgress) {
-          onProgress(0.2 + (0.7 * (i + 1)) / total, `Rendering frame ${i + 1}/${total}`);
+          onProgress(0.2 + (0.7 * (i + 1)) / total, `데이터 프레임 송출 중 (${i + 1}/${total})`);
         }
-        this.renderer.renderToCanvas(canvas, dataFrames[i]);
+        this.renderer.renderToCanvas(canvas, dataFrames[i], {
+          cellSize: 6,
+          camouflageMode,
+        });
         await this.waitNextFrame(1000 / fps);
       }
 
       // 3. End Marker (1.0 second): Green (#00FF00)
-      if (onProgress) onProgress(0.95, 'Rendering end marker...');
+      if (onProgress) onProgress(0.95, '종료 프레임 마킹 중...');
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.fillStyle = '#00FF00';

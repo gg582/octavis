@@ -53,13 +53,10 @@ impl ColorState {
         }
     }
 
-    /// Robust 3-channel thresholding & Mahalanobis/Euclidean classification
-    /// Resistant to H.264/VP9 chroma subsampling (4:2:0) and DCT blocking artifacts
     pub fn classify_rgb(rgb: [u8; 3], palette: &[[u8; 3]; 8]) -> Self {
         let mut min_dist = u32::MAX;
         let mut best_idx = 0;
         for (i, p) in palette.iter().enumerate() {
-            // Human perception weighted RGB Euclidean distance (Redmean metric)
             let r_bar = (rgb[0] as i64 + p[0] as i64) / 2;
             let dr = rgb[0] as i64 - p[0] as i64;
             let dg = rgb[1] as i64 - p[1] as i64;
@@ -76,4 +73,21 @@ impl ColorState {
         }
         Self::from_bits(best_idx as u8)
     }
+}
+
+// Derive a polymorphic chameleon preamble color [R, G, B] from passphrase
+pub fn derive_preamble_rgb(passphrase: &str) -> [u8; 3] {
+    if passphrase.trim().is_empty() {
+        return [255, 0, 255]; // default Magenta
+    }
+    let mut h: u32 = 0x811c9dc5;
+    for &b in passphrase.as_bytes() {
+        h ^= b as u32;
+        h = h.wrapping_mul(0x01000193);
+    }
+    // Generate saturated high-contrast colors (avoiding pure black/white)
+    let r = (((h >> 16) & 0xFF) as u8).max(50);
+    let g = (((h >> 8) & 0xFF) as u8).max(50);
+    let b = ((h & 0xFF) as u8).max(50);
+    [r, g, b]
 }
